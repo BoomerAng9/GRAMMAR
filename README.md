@@ -1,28 +1,31 @@
-# GRAMMER
+# GRAMMAR
 
-**GRAMMER** is the primary execution repository for ACHIEVEMOR's Plug platform—where we unify multi-agent orchestration, voice, vision, and tool execution into one production-ready system.
+**GRAMMAR** is the governed multimodal execution runtime for ACHIEVEMOR's Plug platform in Deploy by ACHIEVEMOR.
 
-## Suggested GitHub repository description
+## Repository role
 
-> Multimodal agent platform for ACHIEVEMOR Plugs: orchestration, voice, vision, and tool execution in one repo.
+GRAMMAR is the primary implementation repo for:
+- agent orchestration,
+- typed Plug/tool execution,
+- voice-first and vision-first interaction scaffolding,
+- memory-aware iteration,
+- policy and safety controls,
+- consistent chat and data-source UX behavior.
 
-## What this repo is for
+## Implemented in this phase
 
-This is the integration surface for:
-- **Agent orchestration** (planning, routing, policy, memory)
-- **Voice capabilities** (STT/TTS, streaming interactions, interruption handling)
-- **Vision mode** (image-aware reasoning and tool-assisted workflows)
-- **Plug ecosystem** (typed, versioned, secure tool contracts)
+- Core module scaffolding under `src/` for orchestrator, tools, multimodal, platform, agents, UI, and shared layers.
+- SOP pack under `docs/sop` covering FDH, Look/Listen/Learn, ASCII-first gates, change-order memory, QA/security, chat standards, and data-source flow.
+- Typed contracts (Zod) for agents, tools, orchestration payloads, and ASCII prototypes.
+- First memory layer storing session notes, preferences, change orders, approvals, rejections, and data-source selections.
+- First working orchestration slice: text request -> routing -> policy-checked tool run -> response payload.
+- Chat shell state scaffold with exact bezel label `Chat w/ACHEEVY` and multi-source attach behavior.
+- ASCII prototype artifact support and baseline prototype for chat shell.
+- Unit and integration tests for schemas, routing, policy, memory/prototypes, chat state, and orchestration flow.
 
-## Architecture & implementation foundation
+## Key docs
 
-Read [`docs/integration-foundation.md`](docs/integration-foundation.md) for the detailed plan, including:
-- capability model and reference architecture,
-- agent and plug contract recommendations,
-- governance/safety guardrails,
-- phased implementation roadmap and immediate next tasks.
-
-## Current status
-
-- Foundation and architecture direction documented.
-- Ready to implement module scaffolding for orchestrator, tools, multimodal, and platform layers.
+- [`docs/README.md`](docs/README.md)
+- [`docs/architecture/implementation-overview.md`](docs/architecture/implementation-overview.md)
+- [`docs/integration-foundation.md`](docs/integration-foundation.md)
+- [`docs/prototypes/chat-shell-v1.md`](docs/prototypes/chat-shell-v1.md)
