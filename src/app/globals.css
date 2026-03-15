@@ -66,6 +66,10 @@ body {
     text-wrap: balance;
   }
 
+  .font-script {
+    font-family: var(--font-script), cursive;
+  }
+
   .animate-in {
     animation-fill-mode: both;
   }

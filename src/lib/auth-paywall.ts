@@ -34,7 +34,17 @@ export interface TierLimits {
   custom_models: boolean;
 }
 
-export const PLAN_CONFIG = {
+export interface PlanFeature {
+  name: string;
+  price: string;
+  period: string;
+  features: string[];
+  cta: string;
+  highlight?: boolean;
+  priceId: string | null;
+}
+
+export const PLAN_CONFIG: Record<string, PlanFeature> = {
   free: {
     name: 'Starter',
     price: '$0',
@@ -46,6 +56,7 @@ export const PLAN_CONFIG = {
       '50 MB Storage',
     ],
     cta: 'Current Plan',
+    priceId: null,
   },
   pro: {
     name: 'Pro',
@@ -61,6 +72,7 @@ export const PLAN_CONFIG = {
     ],
     cta: 'Upgrade to Pro',
     highlight: true,
+    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || 'price_pro_default',
   },
   enterprise: {
     name: 'Enterprise',
@@ -77,6 +89,7 @@ export const PLAN_CONFIG = {
       'SLA Guarantee',
     ],
     cta: 'Contact Sales',
+    priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_default',
   },
 };
 
@@ -89,7 +102,7 @@ export const authService = {
   async signUp(email: string, password: string, displayName?: string) {
     if (!insforge) throw new Error('InsForge client not initialized');
     
-    const { data, error } = await (insforge.auth as any).signUp({
+    const { data, error } = await (insforge.auth as any /* eslint-disable-line @typescript-eslint/no-explicit-any */).signUp({
       email,
       password,
       options: { data: { name: displayName || email.split('@')[0] } }

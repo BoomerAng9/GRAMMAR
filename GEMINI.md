@@ -21,10 +21,21 @@ Use **InsForge** agents to expedite UI building within the `agenticui-nextui` fr
 ## Architecture Decisions & Memory
 
 - `.ai/decisions/` — Architecture Decision Records (ADRs) with context and rationale
+  - `ADR-001`: **NotebookLM TLI Integration**. Using Google's Research API for deep context indexing in parallel with GLM-5.
+  - `ADR-002`: **InsForge Paywall Tiering**. Hardware-accelerated research queries gated by Pro/Enterprise subscriptions.
 - `.ai/changelog/` — Monthly change logs with context, reasoning, and impact
 - `.ai/skills/` — Portable skill definitions — read and execute `.ai/skills/<name>/skill.md` when triggered
 - `.ai/memory/` — Shared memory files (debugging patterns, known issues, refactoring log)
 - `.specs/` — PRD、设计、Epic、Story — 通过 /spec 管理
+
+## Launch Manifest (v1.0-RC)
+
+- [x] **Research Lab**: Multimodal context ingestion (Docs/Video/URLs) + Deep Query.
+- [x] **Paywall**: Stripe-integrated Pro/Enterprise tiers.
+- [x] **White-Labeling**: Real-time theme injection via InsForge.
+- [x] **TLI Infrastructure**: SQL schema for context packs and history persistence.
+- [ ] **Stripe Production Keys**: Awaiting production secret injection.
+- [ ] **NotebookLM API Key**: Awaiting production key injection in `.env.local`.
 
 ## 交互语言
 

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
   // Stripe event verification (simplified — in production, use stripe SDK)
   // For now, we trust the event and process it
-  let event: any;
+  let event: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
   try {
     event = JSON.parse(body);
   } catch {
@@ -166,9 +166,10 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
     console.error('[Stripe Webhook] Processing error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 

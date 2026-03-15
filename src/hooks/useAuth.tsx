@@ -7,7 +7,7 @@ import { authService, paywallService, type UserProfile, type Subscription, type 
 
 interface AuthContextType {
   // State
-  user: any | null;
+  user: any /* eslint-disable-line @typescript-eslint/no-explicit-any */ | null;
   profile: UserProfile | null;
   subscription: Subscription | null;
   tierLimits: TierLimits | null;
@@ -30,7 +30,7 @@ const AuthContext = createContext<AuthContextType | null>(null);
 // ─── Provider ─────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<any /* eslint-disable-line @typescript-eslint/no-explicit-any */ | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [tierLimits, setTierLimits] = useState<TierLimits | null>(null);

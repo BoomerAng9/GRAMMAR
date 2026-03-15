@@ -2,11 +2,10 @@
 
 import React from 'react';
 import { 
-  Activity, 
+    Activity, 
   Layers, 
   CheckSquare, 
   AlertCircle,
-  TrendingUp,
   Clock
 } from 'lucide-react';
 

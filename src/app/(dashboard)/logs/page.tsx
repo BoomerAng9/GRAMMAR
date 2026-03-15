@@ -4,12 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Terminal, 
   Search, 
-  Filter, 
   Download, 
   Trash2, 
   Play, 
-  Square,
-  ChevronDown
+  Square
 } from 'lucide-react';
 
 export default function LogsPage() {

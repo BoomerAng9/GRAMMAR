@@ -1,10 +1,13 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
+  Settings,
   Users, 
   BrainCircuit, 
   ShieldCheck, 
@@ -15,12 +18,12 @@ import {
   Cpu,
   LogOut,
   ChevronRight,
-  Bell,
-  ExternalLink
+  Bell
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
+import { useWhiteLabel } from '@/hooks/useWhiteLabel';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -100,32 +103,34 @@ function UserDropdown() {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { config } = useWhiteLabel();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
 
   const navItems = [
     { name: 'Board', href: '/board', icon: LayoutDashboard },
+    { name: 'System Manager', href: '/manager', icon: Settings },
     { name: 'Agents', href: '/agents', icon: Users },
     { name: 'Memory', href: '/memory', icon: BrainCircuit },
     { name: 'Policies', href: '/policies', icon: ShieldCheck },
     { name: 'Logs', href: '/logs', icon: Terminal },
     { name: 'Research Lab', href: '/research', icon: FlaskConical },
-    { name: 'ACHEEVY Central', href: '/chat/acheevy', icon: MessageSquare },
+    { name: 'Chat w/ACHEEVY', href: '/chat/acheevy', icon: MessageSquare },
   ];
 
   return (
-    <AuthProvider>
-      <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
+        <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
         {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col z-20">
           <div className="p-6">
-            <Link href="/board" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <div className="w-8 h-8 rounded-lg bg-[#00A3FF] flex items-center justify-center text-white shadow-lg shadow-[#00A3FF33]">
-                <span className="font-bold text-lg">G</span>
-              </div>
-              <div>
-                <h1 className="font-bold text-slate-900 leading-none">Circuit Box</h1>
-                <p className="text-[10px] text-slate-500 font-mono mt-1 tracking-wider uppercase">GRAMMAR Runtime</p>
-              </div>
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Image 
+                src="/grammar-logo.png" 
+                alt="GRAMMAR Logo" 
+                className="w-auto h-7 object-contain"
+                width={120}
+                height={32}
+                priority
+              />
             </Link>
           </div>
 
@@ -139,13 +144,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className={cn(
                     "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium",
                     isActive 
-                      ? "bg-[#00A3FF0F] text-[#00A3FF]" 
+                      ? "text-white" 
                       : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   )}
+                  style={isActive ? { backgroundColor: config.primaryColor } : {}}
                 >
                   <item.icon className={cn(
                     "w-4 h-4 transition-colors",
-                    isActive ? "text-[#00A3FF]" : "text-slate-400 group-hover:text-slate-600"
+                    isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"
                   )} />
                   {item.name}
                 </Link>
@@ -226,7 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="w-80 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ring-1 ring-black/5">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-900">ACHEEVY CONTEXT</h3>
+                    <h3 className="text-xs font-bold text-slate-900">CHAT w/ACHEEVY</h3>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active</span>
@@ -293,13 +299,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <BrainCircuit className="w-8 h-8 text-white" />
               <div className="absolute inset-x-full left-auto pr-6 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
                  <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl">
-                   Ask ACHEEVY
+                   Chat w/ACHEEVY
                  </div>
               </div>
             </button>
           </div>
         </main>
       </div>
-    </AuthProvider>
   );
 }

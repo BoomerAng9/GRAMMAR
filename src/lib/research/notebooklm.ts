@@ -52,7 +52,7 @@ class NotebookLMClient {
   async addSource(notebookId: string, source: Partial<NotebookSource> & { content?: string, url?: string }): Promise<string> {
     const url = `${this.baseUrl}/${notebookId}/sources:batchCreate`;
     
-    let sourceConfig: any = {};
+    let sourceConfig: Record<string, unknown> = {};
     if (source.type === 'url') {
       sourceConfig = { webContent: { url: source.url, sourceName: source.title } };
     } else if (source.type === 'text') {
@@ -90,7 +90,12 @@ class NotebookLMClient {
       // Map API response to our ResearchResponse format
       return {
         answer: response.data.answer.content,
-        citations: response.data.answer.citations.map((c: any) => ({
+        citations: response.data.answer.citations.map((c: { 
+          sourceId: string; 
+          sourceTitle: string; 
+          excerpt: string; 
+          pageNumber?: number 
+        }) => ({
           sourceId: c.sourceId,
           sourceTitle: c.sourceTitle,
           excerpt: c.excerpt,

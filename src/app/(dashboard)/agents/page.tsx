@@ -2,12 +2,8 @@
 
 import React from 'react';
 import { 
-  Users, 
   Search, 
   Cpu, 
-  Battery, 
-  Navigation, 
-  Boxes,
   Zap
 } from 'lucide-react';
 

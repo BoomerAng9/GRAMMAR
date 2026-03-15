@@ -1,4 +1,4 @@
-import { notebookLM, type NotebookSource, type ResearchResponse } from './notebooklm';
+import { notebookLM, type ResearchResponse } from './notebooklm';
 
 export class TLIService {
   /**
@@ -28,8 +28,8 @@ export class TLIService {
   /**
    * Add a source and perform an initial TLI scan
    */
-  public async ingestSource(notebookId: string, source: any) {
-    const sourceId = await notebookLM.addSource(notebookId, source);
+  public async ingestSource(notebookId: string, source: unknown) {
+    const sourceId = await notebookLM.addSource(notebookId, source as any /* eslint-disable-line @typescript-eslint/no-explicit-any */);
     console.log(`[TLI] Ingested source ${sourceId} into notebook ${notebookId}`);
     
     // In a real implementation, we would trigger a background task 

@@ -16,6 +16,7 @@ export async function middleware(request: NextRequest) {
   // Define protected routes
   const isProtectedRoute = 
     pathname.startsWith('/board') || 
+    pathname.startsWith('/manager') ||
     pathname.startsWith('/agents') || 
     pathname.startsWith('/research') || 
     pathname.startsWith('/memory') || 
@@ -25,20 +26,31 @@ export async function middleware(request: NextRequest) {
     pathname === '/settings';
 
   const isAuthRoute = pathname.startsWith('/auth/login');
+  const isCallbackRoute = pathname.startsWith('/auth/callback');
 
-  // Skip middleware for API, static files, images, etc.
+  // Root landing page is ALWAYS public
+  if (pathname === '/') {
+    return NextResponse.next();
+  }
+
+  // Skip middleware for API, static files, images, callback, etc.
   if (
     pathname.includes('.') || 
     pathname.startsWith('/api') || 
-    pathname.startsWith('/_next')
+    pathname.startsWith('/_next') ||
+    isCallbackRoute
   ) {
     return NextResponse.next();
   }
 
-  // InsForge SDK typically stores session in a cookie prefixed with 'ins-'
-  // We check for the presence of the access token
-  // Use 'insforge-auth-token' or similar based on SDK config
-  const authToken = request.cookies.get('insforge-auth-token');
+  // Check all cookies for an auth token
+  // InsForge/Supabase uses: insforge-auth-token, sb-access-token, or sb-[project-id]-auth-token
+  const cookies = request.cookies.getAll();
+  const authToken = cookies.find(c => 
+    c.name === 'insforge-auth-token' || 
+    c.name === 'sb-access-token' || 
+    (c.name.startsWith('sb-') && c.name.endsWith('-auth-token'))
+  );
 
   if (isProtectedRoute && !authToken) {
     const loginUrl = new URL('/auth/login', request.url);
