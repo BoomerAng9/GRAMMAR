@@ -206,14 +206,17 @@ export default function ResearchLab() {
             metadata: { citations: response.citations, reasoning: dynamicReasoning }
           }]);
         }
-      } catch {
-        toast.error("Deep Research failed. Check TLI connection.");
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        toast.error(`Deep Research failed: ${errorMessage}`);
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
           role: 'agent',
-          content: "I encountered an error querying the deep research index. Please verify your data sources.",
+          content: `I encountered an error querying the deep research index: ${errorMessage}` ,
           timestamp: new Date().toLocaleTimeString()
         }]);
+      } finally {
+        setIsResearching(false);
       }
     } else {
       // Simulate GLM-5 Research Flow
@@ -236,7 +239,7 @@ export default function ResearchLab() {
         };
         setMessages(prev => [...prev, agentMsg]);
         trackUsage('research_queries');
-        
+
         if (user && insforge) {
           await insforge.database.from('history').insert([{
             user_id: user.id,
@@ -246,10 +249,9 @@ export default function ResearchLab() {
             metadata: { reasoning: dynamicReasoning }
           }]);
         }
+        setIsResearching(false);
       }, 1500);
     }
-    
-    setIsResearching(false);
   };
 
   const handleOpenAddSource = (type: NotebookSource['type']) => {
