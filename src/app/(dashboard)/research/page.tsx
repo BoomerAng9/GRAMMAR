@@ -28,7 +28,6 @@ import { NotebookSource, ResearchResponse } from '@/lib/research/notebooklm';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { insforge } from '@/lib/insforge';
-import { tliService } from '@/lib/research/tli-service';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -92,7 +91,16 @@ export default function ResearchLab() {
           if (data?.notebook_id) {
             setNotebookId(data.notebook_id);
           } else {
-            const id = await tliService.initContextPack('Global');
+            const initRes = await fetch('/api/research', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'init', projectName: 'Global' }),
+            });
+            const initPayload = await initRes.json();
+            if (!initRes.ok || !initPayload?.notebookId) {
+              throw new Error(initPayload?.error || 'Failed to initialize Notebook context');
+            }
+            const id = initPayload.notebookId as string;
             setNotebookId(id);
             // Save to InsForge
             await insforge?.database.from('context_packs').insert([{
@@ -173,7 +181,16 @@ export default function ResearchLab() {
 
     if (researchMode === 'notebook' && notebookId) {
       try {
-        const response = await tliService.research(notebookId, query, 'deep');
+        const queryRes = await fetch('/api/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'query', notebookId, query, mode: 'deep' }),
+        });
+        const responsePayload = await queryRes.json();
+        if (!queryRes.ok) {
+          throw new Error(responsePayload?.error || 'Research query failed');
+        }
+        const response = responsePayload as ResearchResponse;
         
         // Generate dynamic reasoning steps for deep research
         const keywords = query.split(' ').filter(w => w.length > 4).slice(0, 3).join(', ');
@@ -285,7 +302,19 @@ export default function ResearchLab() {
     
     try {
       if (notebookId) {
-        await tliService.ingestSource(notebookId, { type, title, content, url });
+        const ingestRes = await fetch('/api/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'ingest',
+            notebookId,
+            source: { type, title, content, url },
+          }),
+        });
+        const ingestPayload = await ingestRes.json();
+        if (!ingestRes.ok || !ingestPayload?.sourceId) {
+          throw new Error(ingestPayload?.error || 'Failed to ingest source');
+        }
         setSources(prev => prev.map(s => s.id === newSource.id ? { ...s, status: 'ready', wordCount: 0 } : s));
         toast.success(`${title} is now indexed in TLI.`);
         trackUsage('sources');

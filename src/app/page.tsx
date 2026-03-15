@@ -70,6 +70,10 @@ export default function Home() {
         <p className="mt-8 max-w-3xl text-pretty text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
           GRAMMAR is the execution engine for translating natural intent into governed technical context. Start chatting
           to route prompts through ACHEEVY, attach NotebookLM-backed sources, and shape output that your team can ship.
+
+        <p className="mt-8 max-w-3xl text-pretty text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
+          GRAMMAR is the execution engine for translating natural intent into governed technical context. Start chatting
+          to route prompts through ACHEEVY, attach NotebookLM-backed sources, and shape output that your team can ship.
           src="/grammar-logo.svg"
           alt="Grammar logo"
           width={460}

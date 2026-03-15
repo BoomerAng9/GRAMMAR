@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { insforge } from '@/lib/insforge';
 
 interface WhiteLabelConfig {
   systemName: string;
@@ -46,31 +45,26 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
         } catch {}
       }
 
-      // 2. Fetch from InsForge for "source of truth"
-      if (insforge) {
-        try {
-          const { data, error } = await insforge.database
-            .from('system_config')
-            .select('*')
-            .eq('id', 'global')
-            .single();
+      // 2. Fetch from backend API (InsForge source of truth)
+      try {
+        const response = await fetch('/api/admin/branding', { cache: 'no-store' });
+        const payload = await response.json();
 
-          if (data && !error) {
-            const dbConfig: WhiteLabelConfig = {
-              systemName: data.system_name,
-              tagline: data.tagline,
-              primaryColor: data.primary_color,
-              accentColor: data.accent_color,
-              logoUrl: data.logo_url || '',
-              faviconUrl: data.favicon_url || '',
-            };
-            setConfig(dbConfig);
-            localStorage.setItem('grammar_white_label', JSON.stringify(dbConfig));
-            applyStyles(dbConfig);
-          }
-        } catch (e) {
-          console.error("Failed to fetch white-label from InsForge", e);
+        if (response.ok && payload?.data) {
+          const dbConfig: WhiteLabelConfig = {
+            systemName: payload.data.system_name,
+            tagline: payload.data.tagline,
+            primaryColor: payload.data.primary_color,
+            accentColor: payload.data.accent_color,
+            logoUrl: payload.data.logo_url || '',
+            faviconUrl: payload.data.favicon_url || '',
+          };
+          setConfig(dbConfig);
+          localStorage.setItem('grammar_white_label', JSON.stringify(dbConfig));
+          applyStyles(dbConfig);
         }
+      } catch (e) {
+        console.error('Failed to fetch white-label from backend', e);
       }
       setIsLoading(false);
     }
@@ -101,24 +95,19 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
     localStorage.setItem('grammar_white_label', JSON.stringify(updated));
     applyStyles(updated);
     
-    // Persist to InsForge
-    if (insforge) {
-      try {
-        await insforge.database
-          .from('system_config')
-          .update({
-            system_name: updated.systemName,
-            tagline: updated.tagline,
-            primary_color: updated.primaryColor,
-            accent_color: updated.accentColor,
-            logo_url: updated.logoUrl,
-            favicon_url: updated.faviconUrl,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', 'global');
-      } catch (e) {
-        console.error("Failed to save white-label to InsForge", e);
+    // Persist through backend API (InsForge)
+    try {
+      const response = await fetch('/api/admin/branding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error || 'Failed to save branding config');
       }
+    } catch (e) {
+      console.error('Failed to save white-label config via backend', e);
     }
   };
 

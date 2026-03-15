@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { insforge } from '@/lib/insforge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -79,6 +78,17 @@ export default function AcheevyCentral() {
     setQuery("");
     setIsTyping(true);
     
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini',
+          messages: updatedMessages.map(m => ({
+            role: m.role === 'agent' ? 'assistant' : 'user',
+            content: m.content,
+          })),
+        }),
     if (!insforge) {
       setConnectionState('degraded');
       setTimeout(() => {
@@ -102,10 +112,12 @@ export default function AcheevyCentral() {
         })),
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to communicate with ACHEEVY engine');
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to communicate with ACHEEVY engine');
       }
 
+      const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
       const reply = data?.choices?.[0]?.message?.content?.trim();
       if (!reply) {
         throw new Error('No response payload returned by AI engine.');
