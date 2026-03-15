@@ -56,7 +56,7 @@ export default function LoginPage() {
         <div>
           <div className="flex items-center gap-3 mb-16">
             <Image 
-              src="/grammar-logo.svg" 
+              src="/grammar-logo-on-white.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
@@ -94,7 +94,7 @@ export default function LoginPage() {
           {/* Mobile brand (hidden on lg) */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <Image 
-              src="/grammar-logo.svg" 
+              src="/grammar-logo-on-white.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
@@ -108,7 +108,7 @@ export default function LoginPage() {
           </h2>
           <p className="text-sm text-slate-500 mb-8 font-medium">
             {mode === 'signin'
-              ? 'Sign in to access your Circuit Box.'
+              ? 'Sign in to access your GRAMMAR workspace.'
               : 'Start with the free tier. Upgrade anytime.'}
           </p>
 
