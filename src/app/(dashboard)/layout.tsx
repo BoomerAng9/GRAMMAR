@@ -124,7 +124,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="p-6">
             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Image 
-                src="/grammar-logo.png" 
+                src="/grammar-logo.svg" 
                 alt="GRAMMAR Logo" 
                 className="w-auto h-7 object-contain"
                 width={120}
