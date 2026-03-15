@@ -1,31 +1,36 @@
-# GRAMMAR
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-**GRAMMAR** is the governed multimodal execution runtime for ACHIEVEMOR's Plug platform in Deploy by ACHIEVEMOR.
+## Getting Started
 
-## Repository role
+First, run the development server:
 
-GRAMMAR is the primary implementation repo for:
-- agent orchestration,
-- typed Plug/tool execution,
-- voice-first and vision-first interaction scaffolding,
-- memory-aware iteration,
-- policy and safety controls,
-- consistent chat and data-source UX behavior.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Implemented in this phase
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-- Core module scaffolding under `src/` for orchestrator, tools, multimodal, platform, agents, UI, and shared layers.
-- SOP pack under `docs/sop` covering FDH, Look/Listen/Learn, ASCII-first gates, change-order memory, QA/security, chat standards, and data-source flow.
-- Typed contracts (Zod) for agents, tools, orchestration payloads, and ASCII prototypes.
-- First memory layer storing session notes, preferences, change orders, approvals, rejections, and data-source selections.
-- First working orchestration slice: text request -> routing -> policy-checked tool run -> response payload.
-- Chat shell state scaffold with exact bezel label `Chat w/ACHEEVY` and multi-source attach behavior.
-- ASCII prototype artifact support and baseline prototype for chat shell.
-- Unit and integration tests for schemas, routing, policy, memory/prototypes, chat state, and orchestration flow.
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Key docs
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-- [`docs/README.md`](docs/README.md)
-- [`docs/architecture/implementation-overview.md`](docs/architecture/implementation-overview.md)
-- [`docs/integration-foundation.md`](docs/integration-foundation.md)
-- [`docs/prototypes/chat-shell-v1.md`](docs/prototypes/chat-shell-v1.md)
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
