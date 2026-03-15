@@ -89,6 +89,27 @@ export default function AcheevyCentral() {
             content: m.content,
           })),
         }),
+    if (!insforge) {
+      setConnectionState('degraded');
+      setTimeout(() => {
+        setMessages(prev => [...prev, {
+          id: (Date.now() + 1).toString(),
+          role: 'agent',
+          content: '[SYSTEM ERROR] Offline: Unable to connect to MIM backend context. Please verify InsForge configuration.',
+          timestamp: new Date().toLocaleTimeString()
+        }]);
+        setIsTyping(false);
+      }, 300);
+      return;
+    }
+
+    try {
+      const { data, error } = await insforge.ai.chat.completions.create({
+        model: 'openai/gpt-4o-mini',
+        messages: updatedMessages.map(m => ({
+          role: m.role === 'agent' ? 'assistant' : 'user',
+          content: m.content,
+        })),
       });
 
       const payload = await response.json();
@@ -97,6 +118,7 @@ export default function AcheevyCentral() {
       }
 
       const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
+      const reply = data?.choices?.[0]?.message?.content?.trim();
       if (!reply) {
         throw new Error('No response payload returned by AI engine.');
       }
