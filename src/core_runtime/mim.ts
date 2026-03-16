@@ -12,6 +12,8 @@ interface GovernedAction {
   type?: string;
   role?: string;
   directive?: string;
+  plan?: unknown;
+  [key: string]: unknown;
 }
 
 export const mim = {
