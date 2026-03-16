@@ -25,6 +25,7 @@ import { twMerge } from 'tailwind-merge';
 import { useAuth } from '@/hooks/useAuth';
 import { useWhiteLabel } from '@/hooks/useWhiteLabel';
 import { AuthPromptTimer } from '@/components/auth/AuthPromptTimer';
+import { useSystemStatus } from '@/hooks/useSystemStatus';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -106,6 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const { config } = useWhiteLabel();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
+  const { stats, recentEvents } = useSystemStatus();
 
   const navItems = [
     { name: 'Board', href: '/board', icon: LayoutDashboard },
@@ -118,36 +120,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Chat w/ACHEEVY', href: '/chat/acheevy', icon: MessageSquare },
     { name: 'LibreChat', href: '/chat/librechat', icon: MessageSquare },
   ];
-
+  
   return (
-        <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
-        <AuthPromptTimer />
-        {/* Sidebar */}
-        <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col z-20">
-          <div className="p-6">
-            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-              <Image 
-                src="/grammar-logo-on-white.svg" 
-                alt="GRAMMAR Logo" 
-                className="w-auto h-7 object-contain"
-                width={120}
-                height={32}
-                priority
-              />
-            </Link>
-          </div>
     <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
       <AuthPromptTimer />
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-[#E5E7EB] flex-col z-20">
+      <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col z-20">
         <div className="p-6">
           <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
             <Image 
-              src="/grammar-logo-on-white.svg" 
+              src="/grammar-logo-transparent.svg" 
               alt="GRAMMAR Logo" 
-              className="w-auto h-7 object-contain"
+              className="w-auto h-9 object-contain"
               width={120}
-              height={32}
+              height={40}
               priority
             />
           </Link>
@@ -220,12 +206,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="flex items-center gap-2">
                 <Cpu className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-slate-500 uppercase tracking-tighter">RAM:</span>
-                <span className="text-slate-900 font-semibold tracking-tighter">4.2GB / 16GB</span>
+                <span className="text-slate-900 font-semibold tracking-tighter">{stats.ramUsage}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Activity className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-slate-500 uppercase tracking-tighter">Latency:</span>
-                <span className="text-slate-900 font-semibold tracking-tighter">42ms</span>
+                <span className="text-slate-900 font-semibold tracking-tighter">{stats.latency}</span>
               </div>
             </div>
             
@@ -269,11 +255,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <div className="space-y-2">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-2">Live Events</p>
                   <div className="space-y-1">
-                    {[
-                      { event: "TLI: New Source Indexed", time: "14:42:10" },
-                      { event: "BuildSmith: Deploying v1.2", time: "14:40:05" },
-                      { event: "MIM: Policy Check Passed", time: "14:38:22" }
-                    ].map((item, i) => (
+                    {recentEvents.map((item, i) => (
                       <div key={i} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50/50 transition-colors group">
                         <span className="text-xs text-slate-600 font-medium">{item.event}</span>
                         <span className="text-[10px] text-slate-400 font-mono group-hover:text-slate-500">{item.time}</span>

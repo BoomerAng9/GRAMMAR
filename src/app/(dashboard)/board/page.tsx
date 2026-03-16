@@ -8,8 +8,18 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react';
+import { useSystemStatus } from '@/hooks/useSystemStatus';
 
 export default function BoardPage() {
+  const { stats, recentEvents } = useSystemStatus();
+
+  const mockActivity = [
+    { action: "Deployment of TLI Module v1.2", status: "Completed", time: "2 mins ago" },
+    { action: "Agent 'Picker_Ang' optimized routing", status: "Success", time: "14 mins ago" },
+    { action: "MIM Policy Refresh - Global Context", status: "Pending", time: "1 hour ago" },
+    { action: "Hardware scale detected - Scaling workers", status: "Active", time: "2 hours ago" }
+  ];
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
@@ -21,10 +31,10 @@ export default function BoardPage() {
 
       <div className="grid grid-cols-4 gap-6">
         {[
-          { label: 'Active Jobs', value: '12', icon: Layers, color: 'text-blue-500', bg: 'bg-blue-50' },
-          { label: 'Checkpoints', value: '84', icon: CheckSquare, color: 'text-green-500', bg: 'bg-green-50' },
-          { label: 'System Load', value: '24%', icon: Activity, color: 'text-purple-500', bg: 'bg-purple-50' },
-          { label: 'Open Issues', value: '0', icon: AlertCircle, color: 'text-slate-400', bg: 'bg-slate-50' },
+          { label: 'Active Jobs', value: stats.activeJobs.toString(), icon: Layers, color: 'text-blue-500', bg: 'bg-blue-50' },
+          { label: 'Checkpoints', value: stats.checkpoints.toString(), icon: CheckSquare, color: 'text-green-500', bg: 'bg-green-50' },
+          { label: 'System Load', value: `${stats.systemLoad}%`, icon: Activity, color: 'text-purple-500', bg: 'bg-purple-50' },
+          { label: 'Open Issues', value: stats.openIssues.toString(), icon: AlertCircle, color: 'text-slate-400', bg: 'bg-slate-50' },
         ].map((stat, i) => (
           <div key={i} className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-4">
             <div className={stat.bg + " w-10 h-10 rounded-xl flex items-center justify-center " + stat.color}>
@@ -44,12 +54,7 @@ export default function BoardPage() {
           <button className="text-xs font-bold text-[#00A3FF] hover:underline uppercase tracking-widest">View All</button>
         </div>
         <div className="divide-y divide-slate-100">
-          {[
-            { action: "Deployment of TLI Module v1.2", status: "Completed", time: "2 mins ago" },
-            { action: "Agent 'Picker_Ang' optimized routing", status: "Success", time: "14 mins ago" },
-            { action: "MIM Policy Refresh - Global Context", status: "Pending", time: "1 hour ago" },
-            { action: "Hardware scale detected - Scaling workers", status: "Active", time: "2 hours ago" }
-          ].map((row, i) => (
+          {(recentEvents.length > 0 ? recentEvents.map(e => ({ action: e.event, status: "Live", time: e.time })) : mockActivity).map((row, i) => (
             <div key={i} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4">
                 <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
