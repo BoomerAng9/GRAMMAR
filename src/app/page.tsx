@@ -3,13 +3,13 @@
 import { AuthPromptTimer } from '@/components/auth/AuthPromptTimer';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useAuth } from '@/hooks/useAuth';
+import Link from 'next/link';
+import { AuthPromptTimer } from '@/components/auth/AuthPromptTimer';
 
 export default function Home() {
-  const { user, loading } = useAuth();
-
   return (
     <div className="min-h-screen bg-[#F9FAFB] text-slate-900 selection:bg-slate-200 selection:text-slate-900">
+      <AuthPromptTimer />
       {/* 45-second Auth Prompt Modal */}
       {!user && !loading && <AuthPromptTimer />}
       
@@ -23,6 +23,15 @@ export default function Home() {
             <Link
               href="/chat/acheevy"
               className="rounded-full px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:text-slate-900"
+            >
+              Start chatting
+            </Link>
+            <Link
+              href="/research"
+              className="rounded-full bg-[#0F172A] px-5 py-2.5 text-sm font-bold text-white transition hover:scale-105"
+            >
+              Explore platform
+            </Link>
             >
               Start chatting
             </Link>
@@ -55,12 +64,20 @@ export default function Home() {
           technical language out.
         </h1>
 
+
+        <h1 className="text-balance text-5xl font-bold leading-[0.95] tracking-[-0.03em] text-slate-900 sm:text-6xl lg:text-7xl">
+          Ordinary language in.
+          <br />
+          technical language out.
+        </h1>
+
         <p className="mt-8 max-w-3xl text-pretty text-base font-medium leading-relaxed text-slate-600 sm:text-lg">
           GRAMMAR is the execution engine for translating natural intent into governed technical context. Start chatting
           to route prompts through ACHEEVY, attach NotebookLM-backed sources, and shape output that your team can ship.
         </p>
 
         <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row">
+          <Link
           <Link 
             href="/chat/acheevy"
             className="inline-flex items-center gap-2 rounded-full bg-[#00A3FF] px-8 py-4 text-base font-bold text-white shadow-lg shadow-[#00A3FF33] transition hover:scale-105"
@@ -75,12 +92,6 @@ export default function Home() {
           </Link>
         </div>
       </main>
-
-      {/* Decorative Bottom Elements */}
-      <div className="fixed bottom-0 inset-x-0 w-full h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-      <div className="fixed bottom-6 left-6 text-xs font-mono text-slate-400 font-bold tracking-wider">
-        SYS.v0.1.0 // ACTIVE
-      </div>
     </div>
   );
 }

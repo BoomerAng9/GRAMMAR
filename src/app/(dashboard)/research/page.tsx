@@ -81,6 +81,34 @@ export default function ResearchLab() {
     async function initNotebook() {
       if (researchMode === 'notebook' && !notebookId && user) {
         try {
+          // Check if we already have a context pack for this user
+          const { data } = await insforge?.database
+            .from('context_packs')
+            .select('notebook_id')
+            .eq('user_id', user.id)
+            .single() || { data: null };
+          
+          if (data?.notebook_id) {
+            setNotebookId(data.notebook_id);
+          } else {
+            const initRes = await fetch('/api/research', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'init', projectName: 'Global' }),
+            });
+            const initPayload = await initRes.json();
+            if (!initRes.ok || !initPayload?.notebookId) {
+              throw new Error(initPayload?.error || 'Failed to initialize Notebook context');
+            }
+            const id = initPayload.notebookId as string;
+            setNotebookId(id);
+            // Save to InsForge
+            await insforge?.database.from('context_packs').insert([{
+              user_id: user.id,
+              name: 'Global Research Index',
+              notebook_id: id,
+              type: 'tli'
+            }]);
           // Check if we already have a context pack
           if (insforge) {
             const { data } = await insforge.database
@@ -174,6 +202,16 @@ export default function ResearchLab() {
 
     if (researchMode === 'notebook' && notebookId) {
       try {
+        const queryRes = await fetch('/api/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'query', notebookId, query, mode: 'deep' }),
+        });
+        const responsePayload = await queryRes.json();
+        if (!queryRes.ok) {
+          throw new Error(responsePayload?.error || 'Research query failed');
+        }
+        const response = responsePayload as ResearchResponse;
         const response = await fetch('/api/research', {
           method: 'POST',
           body: JSON.stringify({ action: 'query', notebookId, query, mode: 'deep' })
@@ -200,12 +238,26 @@ export default function ResearchLab() {
           reasoningSteps: dynamicReasoning
         }]);
         trackUsage('research_queries');
+        
+        // Persist agent response
+        if (user && insforge) {
+          await insforge.database.from('history').insert([{
+            user_id: user.id,
+            role: 'agent',
+            content: response.answer,
+            type: 'research_response',
+            metadata: { citations: response.citations, reasoning: dynamicReasoning }
+          }]);
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+        toast.error(`Deep Research failed: ${errorMessage}`);
       } catch {
         toast.error("Deep Research failed. Check TLI connection.");
         setMessages(prev => [...prev, {
           id: Date.now().toString(),
           role: 'agent',
-          content: "I encountered an error querying the deep research index. Please verify your data sources.",
+          content: `I encountered an error querying the deep research index: ${errorMessage}` ,
           timestamp: new Date().toLocaleTimeString()
         }]);
       } finally {
@@ -240,6 +292,26 @@ export default function ResearchLab() {
           type: 'optimization'
         }]);
         trackUsage('research_queries');
+
+        if (user && insforge) {
+          await insforge.database.from('history').insert([{
+            user_id: user.id,
+            role: 'agent',
+            content: agentMsg.content,
+            type: 'glm5_response',
+            metadata: { reasoning: dynamicReasoning }
+          }]);
+        }
+        setIsResearching(false);
+      }, 1500);
+    }
+  };
+
+  const handleOpenAddSource = (type: NotebookSource['type']) => {
+    setNewSourceType(type);
+    setNewSourceInput("");
+    setNewSourceTitle("");
+    setIsAddSourceOpen(true);
       } catch {
         toast.error("GLM-5 Engine failed.");
       } finally {
@@ -266,6 +338,19 @@ export default function ResearchLab() {
 
     try {
       if (notebookId) {
+        const ingestRes = await fetch('/api/research', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'ingest',
+            notebookId,
+            source: { type, title, content, url },
+          }),
+        });
+        const ingestPayload = await ingestRes.json();
+        if (!ingestRes.ok || !ingestPayload?.sourceId) {
+          throw new Error(ingestPayload?.error || 'Failed to ingest source');
+        }
         const payload = {
           type: newSourceType,
           title: newSourceTitle,

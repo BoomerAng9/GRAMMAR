@@ -37,6 +37,7 @@ export function AuthPromptTimer() {
           <p className="text-sm text-slate-600 leading-relaxed">
             You can keep browsing, or sign up now to save conversations, connect NotebookLM-backed sources, and unlock plan controls.
           </p>
+
           
           <div className="flex gap-3 pt-2">
             <button

@@ -120,6 +120,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   ];
 
   return (
+        <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
+        <AuthPromptTimer />
+        {/* Sidebar */}
+        <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col z-20">
+          <div className="p-6">
+            <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <Image 
+                src="/grammar-logo-on-white.svg" 
+                alt="GRAMMAR Logo" 
+                className="w-auto h-7 object-contain"
+                width={120}
+                height={32}
+                priority
+              />
+            </Link>
+          </div>
     <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
       <AuthPromptTimer />
       {/* Sidebar */}
