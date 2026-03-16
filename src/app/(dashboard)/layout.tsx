@@ -24,6 +24,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useAuth } from '@/hooks/useAuth';
 import { useWhiteLabel } from '@/hooks/useWhiteLabel';
+import { AuthPromptTimer } from '@/components/auth/AuthPromptTimer';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -115,16 +116,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Logs', href: '/logs', icon: Terminal },
     { name: 'Research Lab', href: '/research', icon: FlaskConical },
     { name: 'Chat w/ACHEEVY', href: '/chat/acheevy', icon: MessageSquare },
+    { name: 'LibreChat', href: '/chat/librechat', icon: MessageSquare },
   ];
 
   return (
         <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
+        <AuthPromptTimer />
         {/* Sidebar */}
         <aside className="w-64 bg-white border-r border-[#E5E7EB] flex flex-col z-20">
           <div className="p-6">
             <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
               <Image 
-                src="/grammar-logo.png" 
+                src="/grammar-logo-on-white.svg" 
                 alt="GRAMMAR Logo" 
                 className="w-auto h-7 object-contain"
                 width={120}

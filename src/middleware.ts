@@ -4,10 +4,10 @@ import { NextResponse, type NextRequest } from 'next/server';
  * Middleware to protect routes and handle auth redirects.
  * 
  * Logic:
- * 1. If path starts with /board, /agents, /research, /memory, /chat, /policies, /logs:
+ * 1. Protect only private app areas (/board, /manager, /agents, /memory, /policies, /logs, /pricing, /settings).
  *    - Check for InsForge auth cookie.
  *    - Redirect to /auth/login if missing.
- * 2. If path is /auth/login and session exists:
+ * 2. Keep exploration routes public (/chat/* and /research) and redirect /auth/login when already authenticated:
  *    - Redirect to /board.
  */
 export async function middleware(request: NextRequest) {
@@ -18,11 +18,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/board') || 
     pathname.startsWith('/manager') ||
     pathname.startsWith('/agents') || 
-    pathname.startsWith('/research') || 
     pathname.startsWith('/memory') || 
-    pathname.startsWith('/chat') || 
     pathname.startsWith('/policies') || 
     pathname.startsWith('/logs') ||
+    pathname.startsWith('/pricing') ||
     pathname === '/settings';
 
   const isAuthRoute = pathname.startsWith('/auth/login');
@@ -71,12 +70,12 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     '/board/:path*',
+    '/manager/:path*',
     '/agents/:path*',
-    '/research/:path*',
     '/memory/:path*',
-    '/chat/:path*',
     '/policies/:path*',
     '/logs/:path*',
+    '/pricing/:path*',
     '/settings/:path*',
     '/auth/login',
   ],
