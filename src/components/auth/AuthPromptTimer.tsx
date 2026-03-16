@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 
 const PROMPT_DELAY_MS = 50_000;
-const DISMISS_KEY = 'grammar_auth_prompt_dismissed_v1';
+const SESSION_DISMISS_KEY = 'grammar_auth_prompt_dismissed_session_v1';
 
 export function AuthPromptTimer() {
   const { user, loading } = useAuth();
@@ -14,7 +14,7 @@ export function AuthPromptTimer() {
   useEffect(() => {
     if (loading || user) return;
 
-    if (typeof window !== 'undefined' && localStorage.getItem(DISMISS_KEY) === '1') {
+    if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_DISMISS_KEY) === '1') {
       return;
     }
 
@@ -40,7 +40,7 @@ export function AuthPromptTimer() {
           <div className="flex gap-3 pt-2">
             <button
               onClick={() => {
-                localStorage.setItem(DISMISS_KEY, '1');
+                sessionStorage.setItem(SESSION_DISMISS_KEY, '1');
                 setIsOpen(false);
               }}
               className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50"
