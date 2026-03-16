@@ -62,7 +62,7 @@ export const onboardingService = {
         orgId: org.id,
         message: 'Customer onboarded successfully with governed runtime.'
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Onboarding Error:', error);
       throw error;
     }

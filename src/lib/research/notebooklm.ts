@@ -21,12 +21,27 @@ export interface ResearchResponse {
 
 class NotebookLMClient {
   private apiKey: string;
+  private accessToken: string;
   private baseUrl: string;
 
   constructor() {
     this.apiKey = process.env.NOTEBOOKLM_API_KEY || '';
-    // Discovery Engine API endpoint
-    this.baseUrl = `https://us-discoveryengine.googleapis.com/v1alpha/projects/${process.env.GCP_PROJECT_ID}/locations/global/notebooks`;
+    this.accessToken = process.env.NOTEBOOKLM_ACCESS_TOKEN || '';
+    const projectId = process.env.GCP_PROJECT_ID || '';
+    const location = process.env.NOTEBOOKLM_LOCATION || 'global';
+    this.baseUrl = `https://us-discoveryengine.googleapis.com/v1alpha/projects/${projectId}/locations/${location}/notebooks`;
+  }
+
+  private getHeaders() {
+    if (this.accessToken) {
+      return { Authorization: `Bearer ${this.accessToken}` };
+    }
+
+    if (this.apiKey) {
+      return { 'x-goog-api-key': this.apiKey };
+    }
+
+    throw new Error('NotebookLM is not configured. Set NOTEBOOKLM_ACCESS_TOKEN or NOTEBOOKLM_API_KEY.');
   }
 
   /**
@@ -37,7 +52,7 @@ class NotebookLMClient {
       const response = await axios.post(
         this.baseUrl,
         { displayName: title },
-        { headers: { Authorization: `Bearer ${this.apiKey}` } }
+        { headers: this.getHeaders() }
       );
       return response.data.name; // Format: projects/.../notebooks/{id}
     } catch (error) {
@@ -65,7 +80,7 @@ class NotebookLMClient {
       const response = await axios.post(
         url,
         { requests: [{ source: sourceConfig }] },
-        { headers: { Authorization: `Bearer ${this.apiKey}` } }
+        { headers: this.getHeaders() }
       );
       return response.data.sourceIds[0];
     } catch (error) {
@@ -84,7 +99,7 @@ class NotebookLMClient {
       const response = await axios.post(
         url,
         { query: prompt, answerGenerationSpec: { modelId: 'gemini-3.1-pro' } },
-        { headers: { Authorization: `Bearer ${this.apiKey}` } }
+        { headers: this.getHeaders() }
       );
       
       // Map API response to our ResearchResponse format

@@ -1,12 +1,10 @@
 "use client";
-"use client";
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
   FileText,
   Globe,
   Youtube,
-  Database,
   FlaskConical,
   BrainCircuit,
   Clock,
@@ -16,9 +14,11 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
+import { insforge } from '@/lib/insforge';
 import { type NotebookSource, type ResearchResponse } from '@/lib/research/notebooklm';
 import { useAuth } from '@/hooks/useAuth';
-import { insforge } from '@/lib/insforge';
+import { type PersistedSourceRecord, mapPersistedSourceRecord } from '@/lib/research/source-records';
+import { sourceIcon } from '@/lib/research/source-icons';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -32,23 +32,6 @@ interface ResearchAgentMessage {
   reasoningSteps?: string[];
   type?: 'research' | 'translation' | 'optimization' | 'notebook';
   citations?: ResearchResponse['citations'];
-}
-
-interface PersistedSourceRecord {
-  id: string;
-  title: string;
-  type: NotebookSource['type'];
-  metadata?: {
-    content?: string;
-    url?: string;
-  };
-}
-
-function sourceIcon(type: NotebookSource['type']) {
-  if (type === 'youtube') return <Youtube className="w-4 h-4" />;
-  if (type === 'url') return <Globe className="w-4 h-4" />;
-  if (type === 'document' || type === 'text') return <FileText className="w-4 h-4" />;
-  return <Database className="w-4 h-4" />;
 }
 
 export default function ResearchLab() {
@@ -148,13 +131,7 @@ export default function ResearchLab() {
           .order('created_at', { ascending: false });
 
         if (data && data.length > 0) {
-          const mappedSources: NotebookSource[] = (data as PersistedSourceRecord[]).map((source) => ({
-            id: source.id,
-            title: source.title,
-            type: source.type,
-            status: 'ready',
-            wordCount: source.metadata?.content ? source.metadata.content.split(' ').length : 1200,
-          }));
+          const mappedSources: NotebookSource[] = (data as PersistedSourceRecord[]).map(mapPersistedSourceRecord);
 
           setSources(mappedSources);
         }
@@ -392,8 +369,9 @@ export default function ResearchLab() {
             title: newSourceTitle,
             type: newSourceType,
             metadata: {
+              notebookSourceId: ingestPayload.sourceId,
               url: payload.url,
-              content: payload.content ? payload.content.substring(0, 100) : undefined,
+              content: payload.content,
             },
           },
         ]);
@@ -550,7 +528,7 @@ export default function ResearchLab() {
                     <p className="text-[15px] font-medium leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     {msg.citations && msg.citations.length > 0 && (
                       <div className="mt-6 pt-6 border-t border-slate-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {msg.citations.map((cite, index) => (
+                        {msg.citations.map((cite: ResearchResponse['citations'][number], index: number) => (
                           <div key={index} className="p-3 bg-white border border-slate-100 rounded-xl text-[10px] font-bold text-slate-600 truncate">
                             <span className="text-[#00A3FF] mr-2">[{index + 1}]</span>
                             {cite.sourceTitle || 'Source'}

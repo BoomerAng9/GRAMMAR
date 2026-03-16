@@ -10,9 +10,14 @@ export interface ReviewResult {
   corrections_needed: boolean;
 }
 
+interface ReviewDeliverable {
+  id?: string;
+  type?: string;
+}
+
 export const reviewHone = {
-  validate: async (deliverable: any): Promise<ReviewResult> => {
-    console.log('Review/Hone: Validating deliverable...');
+  validate: async (deliverable: ReviewDeliverable): Promise<ReviewResult> => {
+    console.log('Review/Hone: Validating deliverable...', deliverable.id || deliverable.type || 'unknown');
     // In a real scenario, this would use a critic model
     return {
       approved: true,

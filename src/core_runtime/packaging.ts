@@ -10,8 +10,13 @@ export interface HandoffBundle {
   retrieval_path: string;
 }
 
+interface HandoffManifest {
+  id: string;
+  evidence_path: string;
+}
+
 export const packaging = {
-  package: async (manifest: any): Promise<HandoffBundle> => {
+  package: async (manifest: HandoffManifest): Promise<HandoffBundle> => {
     console.log('Packaging: Creating handoff bundle...');
     return {
       bundle_id: `bundle-${Math.random().toString(36).substring(7)}`,

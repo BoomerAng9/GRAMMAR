@@ -5,7 +5,13 @@ export interface MIMContextPack {
   organization_id: string;
   policies: MIMPolicy[];
   memory_vectors: string[];
-  revision_history: any[];
+  revision_history: unknown[];
+}
+
+interface GovernedAction {
+  type?: string;
+  role?: string;
+  directive?: string;
 }
 
 export const mim = {
@@ -19,7 +25,7 @@ export const mim = {
     };
   },
 
-  validateExecution: async (action: any, context: MIMContextPack): Promise<{ approved: boolean; reason?: string }> => {
+  validateExecution: async (action: GovernedAction, context: MIMContextPack): Promise<{ approved: boolean; reason?: string }> => {
     // Check action against active MIM policies
     for (const policy of context.policies) {
       if (!policy.is_active) continue;

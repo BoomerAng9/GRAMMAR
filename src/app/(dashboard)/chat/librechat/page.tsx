@@ -1,13 +1,25 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Copy, Check } from 'lucide-react';
+import { Send, Sparkles, Loader2, Copy, Check, Paperclip, FileText, Link2, X } from 'lucide-react';
+import { toast } from 'sonner';
+import { insforge } from '@/lib/insforge';
+import { useAuth } from '@/hooks/useAuth';
+import { type ChatAttachment, type NotebookSourceRecord, mapPersistedSourceRecord, type PersistedSourceRecord } from '@/lib/research/source-records';
+import { sourceIcon } from '@/lib/research/source-icons';
 
 interface ChatMessage {
   id: string;
   role: 'agent' | 'user';
   content: string;
   timestamp: string;
+  attachments?: ChatAttachment[];
+  citations?: Array<{
+    sourceId: string;
+    sourceTitle: string;
+    excerpt: string;
+    pageNumber?: number;
+  }>;
 }
 
 const SYSTEM_PROMPT = `You are ACHEEVY, the assistant inside GRAMMAR. Your single purpose is to convert plain-language descriptions into structured technical prompts that the user can copy and paste into any AI tool (ChatGPT, Claude, Gemini, etc.).
@@ -74,22 +86,106 @@ function parseMessageContent(content: string) {
 }
 
 export default function ChatWithAcheevyPage() {
+  const { user } = useAuth();
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState('');
+  const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
+  const [availableSources, setAvailableSources] = useState<NotebookSourceRecord[]>([]);
+  const [selectedAttachments, setSelectedAttachments] = useState<ChatAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
+    async function loadSources() {
+      if (!user || !insforge) {
+        return;
+      }
+
+      try {
+        const { data } = await insforge.database
+          .from('data_sources')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (Array.isArray(data)) {
+          setAvailableSources((data as PersistedSourceRecord[]).map(mapPersistedSourceRecord));
+        }
+      } catch (loadError) {
+        console.error('[Chat] Failed to load NotebookLM sources:', loadError);
+      }
+    }
+
+    void loadSources();
+  }, [user]);
+
+  useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  const toggleSourceAttachment = (source: NotebookSourceRecord) => {
+    setSelectedAttachments((current) => {
+      const exists = current.some((attachment) => attachment.id === source.id);
+      if (exists) {
+        return current.filter((attachment) => attachment.id !== source.id);
+      }
+
+      return [
+        ...current,
+        {
+          id: source.id,
+          title: source.title,
+          kind: 'notebook-source',
+          type: source.type,
+          notebookId: source.notebookId,
+          sourceId: source.id,
+          notebookSourceId: source.metadata?.notebookSourceId,
+          content: source.metadata?.content,
+          url: source.metadata?.url,
+        },
+      ];
+    });
+  };
+
+  const removeAttachment = (attachmentId: string) => {
+    setSelectedAttachments((current) => current.filter((attachment) => attachment.id !== attachmentId));
+  };
+
+  const handleFileSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) {
+      return;
+    }
+
+    const nextAttachments = await Promise.all(files.map(async (file) => {
+      const text = await file.text();
+      return {
+        id: `upload-${file.name}-${file.lastModified}`,
+        title: file.name,
+        kind: 'upload' as const,
+        type: 'text' as const,
+        mimeType: file.type || 'text/plain',
+        content: text.slice(0, 20000),
+      };
+    }));
+
+    setSelectedAttachments((current) => {
+      const deduped = current.filter((attachment) => !nextAttachments.some((nextAttachment) => nextAttachment.id === attachment.id));
+      return [...deduped, ...nextAttachments];
+    });
+
+    event.target.value = '';
+    toast.success(`${files.length} attachment${files.length > 1 ? 's' : ''} added.`);
+  };
 
   const handleSend = async () => {
     const text = query.trim();
@@ -101,12 +197,14 @@ export default function ChatWithAcheevyPage() {
       role: 'user',
       content: text,
       timestamp: new Date().toLocaleTimeString(),
+      attachments: selectedAttachments,
     };
 
     const updated = [...messages, userMsg];
     setMessages(updated);
     setQuery('');
     setIsTyping(true);
+    setIsAttachmentPickerOpen(false);
 
     try {
       const res = await fetch('/api/chat', {
@@ -121,6 +219,7 @@ export default function ChatWithAcheevyPage() {
               content: m.content,
             })),
           ],
+          attachments: selectedAttachments,
         }),
       });
 
@@ -135,7 +234,9 @@ export default function ChatWithAcheevyPage() {
         role: 'agent',
         content: reply,
         timestamp: new Date().toLocaleTimeString(),
+        citations: Array.isArray(payload?.citations) ? payload.citations : [],
       }]);
+      setSelectedAttachments([]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
       setError(msg);
@@ -208,6 +309,16 @@ export default function ChatWithAcheevyPage() {
                         : 'bg-slate-50 border border-slate-200 text-slate-800 rounded-tl-sm'
                     }`}
                   >
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {msg.attachments.map((attachment) => (
+                          <div key={attachment.id} className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${msg.role === 'user' ? 'bg-white/20 text-white' : 'bg-white text-slate-600 border border-slate-200'}`}>
+                            {attachment.kind === 'notebook-source' ? <Link2 className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                            {attachment.title}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {msg.role === 'agent' ? (
                       parseMessageContent(msg.content).map((part, i) =>
                         part.type === 'prompt' ? (
@@ -218,6 +329,16 @@ export default function ChatWithAcheevyPage() {
                       )
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-4 grid grid-cols-1 gap-2 border-t border-slate-200 pt-4">
+                        {msg.citations.map((citation, index) => (
+                          <div key={`${citation.sourceId}-${index}`} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-[10px] font-bold text-slate-600">
+                            <span className="mr-2 text-[#00A3FF]">[{index + 1}]</span>
+                            {citation.sourceTitle}
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <span className="text-[9px] text-slate-400 font-mono mt-1 block px-1">{msg.timestamp}</span>
@@ -242,7 +363,31 @@ export default function ChatWithAcheevyPage() {
 
       {/* Input area */}
       <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0">
+        {selectedAttachments.length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2">
+            {selectedAttachments.map((attachment) => (
+              <button
+                key={attachment.id}
+                type="button"
+                onClick={() => removeAttachment(attachment.id)}
+                className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-100"
+              >
+                {attachment.kind === 'notebook-source' ? <Link2 className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                {attachment.title}
+                <X className="w-3 h-3" />
+              </button>
+            ))}
+          </div>
+        )}
         <div className="flex items-center gap-3 bg-slate-50 rounded-2xl border border-slate-200 focus-within:border-[#00A3FF] focus-within:ring-4 focus-within:ring-[#00A3FF]/5 transition-all px-4 py-2">
+          <button
+            type="button"
+            title="Add attachments"
+            onClick={() => setIsAttachmentPickerOpen((open) => !open)}
+            className="flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 hover:bg-white hover:text-slate-900"
+          >
+            <Paperclip className="w-4 h-4" />
+          </button>
           <input
             ref={inputRef}
             type="text"
@@ -266,6 +411,51 @@ export default function ChatWithAcheevyPage() {
             <Send className="w-4 h-4" />
           </button>
         </div>
+        {isAttachmentPickerOpen && (
+          <div className="mt-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Attachments</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">Attach files or NotebookLM sources</p>
+              </div>
+              <button type="button" onClick={() => fileInputRef.current?.click()} className="rounded-xl bg-slate-900 px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-white hover:bg-slate-800">
+                Upload file
+              </button>
+              <input ref={fileInputRef} type="file" multiple accept=".txt,.md,.json,.csv,.html,.ts,.tsx,.js,.jsx,.py" title="Upload attachment files" className="hidden" onChange={handleFileSelection} />
+            </div>
+
+            <div className="mt-4 space-y-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">NotebookLM sources</p>
+              {availableSources.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                  No NotebookLM sources yet. Add them in Research Lab, then attach them here.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  {availableSources.map((source) => {
+                    const isSelected = selectedAttachments.some((attachment) => attachment.id === source.id);
+                    return (
+                      <button
+                        key={source.id}
+                        type="button"
+                        onClick={() => toggleSourceAttachment(source)}
+                        className={`flex items-center gap-3 rounded-2xl border px-3 py-3 text-left transition-all ${isSelected ? 'border-[#00A3FF] bg-[#00A3FF0A]' : 'border-slate-200 bg-slate-50 hover:bg-white'}`}
+                      >
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-xl ${isSelected ? 'bg-[#00A3FF] text-white' : 'bg-white text-[#00A3FF] border border-slate-200'}`}>
+                          {sourceIcon(source.type)}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-bold text-slate-900">{source.title}</p>
+                          <p className="text-[10px] text-slate-500">{source.type.toUpperCase()}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

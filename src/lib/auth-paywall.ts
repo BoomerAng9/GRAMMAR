@@ -49,9 +49,32 @@ export interface MIMPolicy {
   name: string;
   description: string;
   type: 'technical' | 'operational' | 'security';
-  rules: any[];
+  rules: unknown[];
   is_active: boolean;
   created_at: string;
+}
+
+interface AuthUserLike {
+  email?: string;
+  metadata?: {
+    name?: string;
+  };
+}
+
+interface SignUpResponse {
+  data?: {
+    user?: {
+      id: string;
+    };
+  };
+  error?: {
+    message?: string;
+  } | null;
+}
+
+interface PolicyMutationResult<T> {
+  data: T | null;
+  error: unknown;
 }
 
 export interface PlanFeature {
@@ -121,8 +144,14 @@ export const authService = {
    */
   async signUp(email: string, password: string, displayName?: string) {
     if (!insforge) throw new Error('InsForge client not initialized');
-    
-    const { data, error } = await (insforge.auth as any /* eslint-disable-line @typescript-eslint/no-explicit-any */).signUp({
+
+    const signUp = (insforge.auth as unknown as { signUp: (payload: {
+      email: string;
+      password: string;
+      options: { data: { name: string } };
+    }) => Promise<SignUpResponse> }).signUp;
+
+    const { data, error } = await signUp({
       email,
       password,
       options: { data: { name: displayName || email.split('@')[0] } }
@@ -209,7 +238,7 @@ export const authService = {
     // Auto-create if missing (likely first OAuth login)
     if (!profile) {
       const { data: session } = await insforge.auth.getCurrentSession();
-      const user = session?.session?.user as any;
+      const user = session?.session?.user as AuthUserLike | undefined;
       
       const { data: newProfile, error: pError } = await insforge.database.from('profiles').insert([{
         user_id: userId,
@@ -390,7 +419,7 @@ export const paywallService = {
     return data;
   },
 
-  async getPolicies(orgId: string): Promise<{ data: MIMPolicy[] | null, error: any }> {
+  async getPolicies(orgId: string): Promise<PolicyMutationResult<MIMPolicy[]>> {
     if (!insforge) return { data: null, error: 'InsForge client not initialized' };
     const { data, error } = await insforge.database.from('policies')
       .select('*')
@@ -399,7 +428,7 @@ export const paywallService = {
     return { data, error };
   },
 
-  async createPolicy(policy: Omit<MIMPolicy, 'id' | 'created_at'>): Promise<{ data: MIMPolicy | null, error: any }> {
+  async createPolicy(policy: Omit<MIMPolicy, 'id' | 'created_at'>): Promise<PolicyMutationResult<MIMPolicy>> {
     if (!insforge) return { data: null, error: 'InsForge client not initialized' };
     const { data, error } = await insforge.database.from('policies')
       .insert([policy])
@@ -408,7 +437,7 @@ export const paywallService = {
     return { data, error };
   },
 
-  async updatePolicy(id: string, updates: Partial<MIMPolicy>): Promise<{ data: any, error: any }> {
+  async updatePolicy(id: string, updates: Partial<MIMPolicy>): Promise<PolicyMutationResult<MIMPolicy>> {
     if (!insforge) return { data: null, error: 'InsForge client not initialized' };
     const { data, error } = await insforge.database.from('policies')
       .update(updates)
