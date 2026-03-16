@@ -18,9 +18,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/board') || 
     pathname.startsWith('/manager') ||
     pathname.startsWith('/agents') || 
-    pathname.startsWith('/research') || 
     pathname.startsWith('/memory') || 
-    pathname.startsWith('/chat') || 
     pathname.startsWith('/policies') || 
     pathname.startsWith('/logs') ||
     pathname.startsWith('/pricing') ||

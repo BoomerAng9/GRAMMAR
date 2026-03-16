@@ -34,7 +34,7 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
   const [config, setConfig] = useState<WhiteLabelConfig>(defaultConfig);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load from InsForge or localStorage cache
+  // Load from Backend API or localStorage cache
   useEffect(() => {
     async function loadConfig() {
       // 1. Try localStorage for fast first-paint
@@ -102,6 +102,7 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated),
       });
+
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
         throw new Error(payload?.error || 'Failed to save branding config');

@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Inter, Caveat } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/hooks/useAuth";
 import { WhiteLabelProvider } from "@/hooks/useWhiteLabel";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const caveat = Caveat({ subsets: ["latin"], variable: "--font-script" });
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -33,8 +29,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="scroll-smooth">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${caveat.variable} antialiased`}
-        style={{ fontFamily: "var(--font-inter), var(--font-geist-sans), system-ui, sans-serif" }}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ fontFamily: "var(--font-geist-sans), system-ui, sans-serif" }}
       >
         <WhiteLabelProvider>
           <AuthProvider>
