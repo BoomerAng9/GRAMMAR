@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { authService, paywallService, type UserProfile, type Subscription, type TierLimits, type Organization } from '@/lib/auth-paywall';
 
 // ─── Context Type ─────────────────────────────────────────
@@ -46,11 +46,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Load session on mount
-  useEffect(() => {
-    loadSession();
+  const provisionWorkspace = useCallback(async (userId: string, displayName: string) => {
+    const workspaceName = `${displayName || 'My'} Workspace`;
+    await authService.createOrganization(userId, workspaceName);
+    return authService.getUserOrganizations(userId);
   }, []);
 
-  async function loadSession() {
+  const loadSession = useCallback(async () => {
     try {
       setLoading(true);
       const session = await authService.getSession();
@@ -62,10 +64,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscription(s);
         
         if (p) {
-          const [limits, orgs] = await Promise.all([
+          const [limits, initialOrgs] = await Promise.all([
             paywallService.getTierLimits(p.tier),
             authService.getUserOrganizations(session.user.id),
           ]);
+
+          let orgs = initialOrgs;
+
+          if (orgs.length === 0) {
+            try {
+              orgs = await provisionWorkspace(session.user.id, p.display_name);
+            } catch (workspaceError) {
+              console.error('[Auth] Workspace provisioning error:', workspaceError);
+            }
+          }
 
           setTierLimits(limits);
           setOrganizations(orgs);
@@ -82,7 +94,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }
+  }, [provisionWorkspace]);
+
+  useEffect(() => {
+    void loadSession();
+  }, [loadSession]);
 
   // ─── Auth Actions ───────────────────────────────────────
 

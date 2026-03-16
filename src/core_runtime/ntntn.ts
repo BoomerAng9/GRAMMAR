@@ -1,75 +1,71 @@
-import { insforge } from '../lib/insforge';
-
 export interface NormalizedIntent {
   objective: string;
   constraints: string[];
-  inputs: any[];
+  inputs: string[];
   outputs: string[];
   risks: string[];
   approvals_needed: string[];
 }
 
+function extractQuotedInputs(intent: string) {
+  const matches = intent.match(/"([^"]+)"|'([^']+)'/g) ?? [];
+  return matches.map((value) => value.replace(/^['"]|['"]$/g, ''));
+}
+
+function inferOutputs(intent: string) {
+  const lowered = intent.toLowerCase();
+  const outputs = new Set<string>();
+
+  if (/(chat|prompt|copy|assistant|message)/.test(lowered)) outputs.add('Single chat surface for ACHEEVY');
+  if (/(deploy|launch|ship|handoff)/.test(lowered)) outputs.add('Launch-ready deployment plan');
+  if (/(integrat|api|mcp|gui)/.test(lowered)) outputs.add('Integrated GUI, MCP, and API surface');
+  if (/(settings|account|billing|workspace)/.test(lowered)) outputs.add('Simple user-facing account settings');
+  if (/(agent|runtime|command center|circuit box)/.test(lowered)) outputs.add('Owner-only operational controls');
+  if (outputs.size === 0) outputs.add('Structured response with actionable next steps');
+
+  return [...outputs];
+}
+
+function inferRisks(intent: string) {
+  const lowered = intent.toLowerCase();
+  const risks = new Set<string>();
+
+  if (/(launch|deploy|ship)/.test(lowered)) risks.add('Deployment readiness must be validated before release.');
+  if (/(auth|account|workspace)/.test(lowered)) risks.add('Account provisioning and workspace access must remain consistent.');
+  if (/(agent|runtime|command center|circuit box)/.test(lowered)) risks.add('Owner-only controls must stay hidden from standard users.');
+  if (/(payment|billing|stripe)/.test(lowered)) risks.add('Billing actions require explicit confirmation before going live.');
+
+  return [...risks];
+}
+
+function inferApprovals(intent: string) {
+  const lowered = intent.toLowerCase();
+  const approvals = new Set<string>();
+
+  if (/(launch|deploy|ship)/.test(lowered)) approvals.add('Owner approval for production launch.');
+  if (/(billing|payment|stripe)/.test(lowered)) approvals.add('Owner approval for billing configuration and live charges.');
+  if (/(agent|runtime|command center|circuit box)/.test(lowered)) approvals.add('Owner approval for command-center visibility and operational access.');
+  if (approvals.size === 0) approvals.add('Owner review before publishing major user-facing workflow changes.');
+
+  return [...approvals];
+}
+
+function normalizeLocally(intent: string): NormalizedIntent {
+  return {
+    objective: intent.trim(),
+    constraints: [
+      'Keep the user-facing experience simple and accessible.',
+      'Hide owner-only operational controls from standard users.',
+    ],
+    inputs: extractQuotedInputs(intent),
+    outputs: inferOutputs(intent),
+    risks: inferRisks(intent),
+    approvals_needed: inferApprovals(intent),
+  };
+}
+
 export const ntntn = {
   normalize: async (intent: string): Promise<NormalizedIntent> => {
-    if (!insforge) {
-      return {
-        objective: intent,
-        constraints: [],
-        inputs: [],
-        outputs: [],
-        risks: [],
-        approvals_needed: []
-      };
-    }
-
-    const systemPrompt = `You are NTNTN, the intent framing module for GRAMMAR. 
-Your job is to take raw human intent and normalize it into a governed objective context.
-
-Return a JSON object with the following structure:
-{
-  "objective": "A clear, concise statement of the primary goal",
-  "constraints": ["List of hard constraints or rules to follow"],
-  "inputs": ["Identified data or resources needed"],
-  "outputs": ["Expected deliverables or outcomes"],
-  "risks": ["Potential failures or security risks"],
-  "approvals_needed": ["Critical steps where human-in-the-loop is required"]
-}`;
-
-    try {
-      const completion = await insforge.ai.chat.completions.create({
-        model: 'anthropic/claude-3-5-haiku-latest',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: intent }
-        ],
-        // @ts-ignore - Assuming standard response format from the SDK
-        response_format: { type: 'json_object' }
-      });
-
-      const payload = 'data' in completion ? completion.data : completion;
-      const error = 'error' in completion ? completion.error : null;
-
-      if (error) {
-        throw new Error(error.message || 'Intent normalization failed');
-      }
-
-      const rawContent = payload?.choices?.[0]?.message?.content;
-      if (!rawContent) {
-        throw new Error('Intent normalization returned an empty response');
-      }
-
-      const result = JSON.parse(rawContent);
-      return result as NormalizedIntent;
-    } catch (error) {
-      console.error('NTNTN Normalization Error:', error);
-      return {
-        objective: intent,
-        constraints: [],
-        inputs: [],
-        outputs: [],
-        risks: [],
-        approvals_needed: []
-      };
-    }
+    return normalizeLocally(intent);
   }
 };

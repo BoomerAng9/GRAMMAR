@@ -9,13 +9,10 @@ import {
   LayoutDashboard, 
   Settings,
   Users, 
-  BrainCircuit, 
   ShieldCheck, 
   Terminal, 
   FlaskConical, 
   MessageSquare,
-  Activity,
-  Cpu,
   LogOut,
   ChevronRight,
   Bell
@@ -25,7 +22,6 @@ import { twMerge } from 'tailwind-merge';
 import { useAuth } from '@/hooks/useAuth';
 import { useWhiteLabel } from '@/hooks/useWhiteLabel';
 import { AuthPromptTimer } from '@/components/auth/AuthPromptTimer';
-import { useSystemStatus } from '@/hooks/useSystemStatus';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -183,10 +179,10 @@ function OrgSwitcher() {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, organization, organizations, loading } = useAuth();
+  const { user, profile, organization, organizations, loading } = useAuth();
   const { config } = useWhiteLabel();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
-  const { stats, recentEvents } = useSystemStatus();
+  const isOwnerView = profile?.role === 'admin' || profile?.role === 'operator';
 
   // Redirect to onboarding if no organization
   useEffect(() => {
@@ -195,16 +191,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   }, [user, organizations, loading, pathname, router]);
 
-  const navItems = [
+  const primaryNavItems = [
+    { name: 'Chat w/ ACHEEVY', href: '/chat/librechat', icon: MessageSquare },
+    { name: 'Account', href: '/settings', icon: Users },
+    { name: 'Billing', href: '/pricing', icon: LayoutDashboard },
+  ];
+
+  const ownerNavItems = [
     { name: 'Board', href: '/board', icon: LayoutDashboard },
     { name: 'System Manager', href: '/manager', icon: Settings },
     { name: 'Agents', href: '/agents', icon: Users },
-    { name: 'Memory', href: '/memory', icon: BrainCircuit },
+    { name: 'Memory', href: '/memory', icon: ShieldCheck },
     { name: 'Policies', href: '/policies', icon: ShieldCheck },
     { name: 'Logs', href: '/logs', icon: Terminal },
     { name: 'Research Lab', href: '/research', icon: FlaskConical },
-    { name: 'Chat w/ ACHEEVY', href: '/chat/librechat', icon: MessageSquare },
   ];
+  const navItems = isOwnerView ? [...primaryNavItems, ...ownerNavItems] : primaryNavItems;
+  const quickLinks = isOwnerView ? ownerNavItems.slice(0, 4) : primaryNavItems;
   
   return (
     <div className="flex h-screen bg-[#F9FAFB] text-slate-900 font-sans antialiased overflow-hidden">
@@ -251,28 +254,36 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="p-4 space-y-4 border-t border-slate-100">
           <OrgSwitcher />
-          
-          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Runtime State</span>
-              <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[10px] font-black text-emerald-600">LIVE</span>
+
+          {isOwnerView ? (
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Runtime State</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-emerald-600">LIVE</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className="text-slate-500">Governance</span>
+                  <span className="text-slate-900 font-mono">ACTIVE</span>
+                </div>
+                <div className="flex justify-between text-[10px] font-bold">
+                  <span className="text-slate-500">Org ID</span>
+                  <span className="text-slate-900 font-mono truncate ml-4">
+                    {organization?.id?.slice(0, 8) || '---'}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold">
-                <span className="text-slate-500">Governance</span>
-                <span className="text-slate-900 font-mono">ACTIVE</span>
-              </div>
-              <div className="flex justify-between text-[10px] font-bold">
-                <span className="text-slate-500">Org ID</span>
-                <span className="text-slate-900 font-mono truncate ml-4">
-                  {organization?.id?.slice(0, 8) || '---'}
-                </span>
-              </div>
+          ) : (
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Workspace</p>
+              <p className="mt-2 text-sm font-bold text-slate-900">{organization?.name || 'Personal Workspace'}</p>
+              <p className="mt-1 text-xs text-slate-500">Your account is ready. Start in chat, then manage account and billing here.</p>
             </div>
-          </div>
+          )}
         </div>
       </aside>
 
@@ -291,21 +302,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4 text-[11px] font-mono">
-              <div className="flex items-center gap-2">
-                <Cpu className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-500 uppercase tracking-tighter">RAM:</span>
-                <span className="text-slate-900 font-semibold tracking-tighter">{stats.ramUsage}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Activity className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-slate-500 uppercase tracking-tighter">Latency:</span>
-                <span className="text-slate-900 font-semibold tracking-tighter">{stats.latency}</span>
-              </div>
-            </div>
-            
-            <div className="h-4 w-px bg-slate-200" />
-            
             <button type="button" title="Open notifications" className="relative text-slate-400 hover:text-slate-600">
               <Bell className="w-5 h-5" />
               <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
@@ -326,11 +322,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-80 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ring-1 ring-black/5">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div>
-                    <h3 className="text-xs font-bold text-slate-900">CHAT W/ ACHEEVY</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active</span>
-                  </div>
+                  <h3 className="text-xs font-bold text-slate-900">CHAT W/ ACHEEVY</h3>
+                  <p className="mt-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    {isOwnerView ? 'Owner view' : 'Ready to use'}
+                  </p>
                 </div>
                 <button 
                   onClick={() => setIsQuickPanelOpen(false)}
@@ -343,16 +338,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
 
               <div className="flex-1 p-4 space-y-4 max-h-96 overflow-y-auto">
-                <div className="space-y-2">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-2">Live Events</p>
-                  <div className="space-y-1">
-                    {recentEvents.map((item, i) => (
-                      <div key={i} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-50/50 transition-colors group">
-                        <span className="text-xs text-slate-600 font-medium">{item.event}</span>
-                        <span className="text-[10px] text-slate-400 font-mono group-hover:text-slate-500">{item.time}</span>
-                      </div>
-                    ))}
-                  </div>
+                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Workspace status</p>
+                  <p className="mt-2 text-sm font-bold text-slate-900">{organization?.name || 'Personal Workspace'}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    {isOwnerView
+                      ? 'Owner controls stay available, but chat remains the primary surface for everyday work.'
+                      : 'Start in chat. Account and billing stay accessible without exposing command-center controls.'}
+                  </p>
                 </div>
               </div>
 
@@ -366,7 +359,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </Link>
                 
                 <div className="grid grid-cols-4 gap-2">
-                  {navItems.slice(0, 4).map((item, i) => (
+                  {quickLinks.map((item, i) => (
                     <Link 
                       key={i}
                       href={item.href}
@@ -390,7 +383,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               isQuickPanelOpen ? "bg-slate-900" : "bg-[#00A3FF] shadow-[#00A3FF44]"
             )}
           >
-            <BrainCircuit className="w-8 h-8 text-white" />
+            <Image
+              src="/acheevy-helmet.svg"
+              alt="ACHEEVY helmet"
+              width={34}
+              height={34}
+              className="h-[34px] w-[34px]"
+            />
             <div className="absolute inset-x-full left-auto pr-6 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
                <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl">
                  Chat w/ ACHEEVY
