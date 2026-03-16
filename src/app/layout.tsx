@@ -17,9 +17,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "GRAMMAR — Circuit Box",
-  description: "ACHIEVEMOR's API-first, vision-first action runtime. Governed multi-role agent orchestration.",
-  keywords: ["GRAMMAR", "ACHIEVEMOR", "ACHEEVY", "AI Orchestration", "Agent Runtime"],
+  title: "GRAMMAR — Plain Language to Technical Prompts",
+  description: "GRAMMAR converts everyday language into structured technical prompts. Say it in plain English — get back a prompt you can paste into ChatGPT, Claude, or Gemini.",
+  keywords: ["GRAMMAR", "ACHEEVY", "prompt engineering", "AI prompts", "language conversion"],
 };
 
 export default function RootLayout({

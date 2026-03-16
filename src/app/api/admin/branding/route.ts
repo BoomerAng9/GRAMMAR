@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@insforge/sdk';
 
+export const revalidate = 300;
+
+const defaultBranding = {
+  system_name: 'GRAMMAR',
+  tagline: 'Governed Action Runtime',
+  primary_color: '#00A3FF',
+  accent_color: '#A855F7',
+  logo_url: '',
+  favicon_url: '',
+};
+
 function getServerClient() {
   const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
   const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
@@ -14,21 +25,35 @@ function getServerClient() {
 
 export async function GET() {
   try {
-    const insforge = getServerClient();
+    let insforge;
+
+    try {
+      insforge = getServerClient();
+    } catch {
+      return NextResponse.json({ data: defaultBranding }, {
+        headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
+      });
+    }
+
     const { data, error } = await insforge.database
       .from('system_config')
       .select('*')
       .eq('id', 'global')
       .single();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !data) {
+      return NextResponse.json({ data: defaultBranding }, {
+        headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
+      });
     }
 
-    return NextResponse.json({ data });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load branding config';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ data }, {
+      headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
+    });
+  } catch {
+    return NextResponse.json({ data: defaultBranding }, {
+      headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
+    });
   }
 }
 

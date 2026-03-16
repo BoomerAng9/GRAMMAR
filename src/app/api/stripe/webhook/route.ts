@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 
 /**
  * POST /api/stripe/webhook
@@ -17,6 +18,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 });
   }
 
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: '2026-02-25.clover' });
+
   const body = await request.text();
   const sig = request.headers.get('stripe-signature');
 
@@ -24,17 +27,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing stripe-signature header' }, { status: 400 });
   }
 
-  // Stripe event verification (simplified — in production, use stripe SDK)
-  // For now, we trust the event and process it
-  let event: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let event: Stripe.Event;
   try {
-    event = JSON.parse(body);
-  } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    event = stripe.webhooks.constructEvent(body, sig, STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Signature verification failed';
+    console.error(`[Stripe Webhook] Signature verification failed: ${message}`);
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
   const eventType = event.type;
-  const data = event.data?.object;
+  const data = event.data?.object as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   console.log(`[Stripe Webhook] Received event: ${eventType}`);
 

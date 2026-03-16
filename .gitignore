@@ -36,7 +36,11 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env.*
 .env*.local
+MASTER_SECRETS.md
+ACHEEVY_MASTER_CREDENTIALS.md
 
 # vercel
 .vercel

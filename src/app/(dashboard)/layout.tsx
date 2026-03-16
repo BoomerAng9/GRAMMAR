@@ -203,8 +203,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: 'Policies', href: '/policies', icon: ShieldCheck },
     { name: 'Logs', href: '/logs', icon: Terminal },
     { name: 'Research Lab', href: '/research', icon: FlaskConical },
-    { name: 'Chat w/ACHEEVY', href: '/chat/acheevy', icon: MessageSquare },
-    { name: 'LibreChat', href: '/chat/librechat', icon: MessageSquare },
+    { name: 'Chat w/ ACHEEVY', href: '/chat/librechat', icon: MessageSquare },
   ];
   
   return (
@@ -327,7 +326,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-80 bg-white border border-slate-200 rounded-[2rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 ring-1 ring-black/5">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-900">CHAT w/ACHEEVY</h3>
+                    <h3 className="text-xs font-bold text-slate-900">CHAT W/ ACHEEVY</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Active</span>
@@ -359,7 +358,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
               <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col gap-3">
                 <Link 
-                  href="/chat/acheevy"
+                  href="/chat/librechat"
                   className="flex items-center justify-center gap-2 w-full bg-[#00A3FF] hover:bg-[#0089D9] text-white py-3 rounded-xl font-semibold text-sm transition-all shadow-lg shadow-[#00A3FF33] active:scale-[0.98]"
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -394,7 +393,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <BrainCircuit className="w-8 h-8 text-white" />
             <div className="absolute inset-x-full left-auto pr-6 opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap">
                <div className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-xl">
-                 Chat w/ACHEEVY
+                 Chat w/ ACHEEVY
                </div>
             </div>
           </button>

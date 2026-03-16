@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { authService, paywallService, type UserProfile, type Subscription, type TierLimits } from '@/lib/auth-paywall';
+import { authService, paywallService, type UserProfile, type Subscription, type TierLimits, type Organization } from '@/lib/auth-paywall';
 
 // ─── Context Type ─────────────────────────────────────────
 
@@ -11,8 +11,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   subscription: Subscription | null;
   tierLimits: TierLimits | null;
-  organization: any | null;
-  organizations: any[];
+  organization: Organization | null;
+  organizations: Organization[];
   loading: boolean;
   
   // Auth actions
@@ -41,8 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [tierLimits, setTierLimits] = useState<TierLimits | null>(null);
-  const [organizations, setOrganizations] = useState<any[]>([]);
-  const [organization, setOrganization] = useState<any | null>(null);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load session on mount
@@ -62,15 +62,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscription(s);
         
         if (p) {
-          const limits = await paywallService.getTierLimits(p.tier);
-          setTierLimits(limits);
+          const [limits, orgs] = await Promise.all([
+            paywallService.getTierLimits(p.tier),
+            authService.getUserOrganizations(session.user.id),
+          ]);
 
-          // Load organizations
-          const orgs = await authService.getUserOrganizations(session.user.id);
+          setTierLimits(limits);
           setOrganizations(orgs);
           
           if (orgs.length > 0) {
-            const activeOrg = orgs.find((o: any) => o.id === p.default_org_id) || orgs[0];
+            const activeOrg = orgs.find((org) => org.id === p.default_org_id) || orgs[0];
             setOrganization(activeOrg);
           }
 
@@ -139,7 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function switchOrg(orgId: string) {
     if (!user) return;
     await authService.updateProfile(user.id, { default_org_id: orgId });
-    await loadSession();
+    const nextOrg = organizations.find((org) => org.id === orgId) ?? null;
+    setOrganization(nextOrg);
+    setProfile((prev) => (prev ? { ...prev, default_org_id: orgId } : prev));
   }
 
   // ─── Render ─────────────────────────────────────────────

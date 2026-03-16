@@ -27,55 +27,20 @@ const WhiteLabelContext = createContext<{
 }>({
   config: defaultConfig,
   updateConfig: async () => {},
-  isLoading: true,
+  isLoading: false,
 });
+
+const BRANDING_CACHE_KEY = 'grammar_white_label';
+const BRANDING_FAIL_KEY = 'grammar_white_label_fetch_failed_at';
+const BRANDING_RETRY_WINDOW_MS = 60_000;
 
 export function WhiteLabelProvider({ children }: { children: React.ReactNode }) {
   const [config, setConfig] = useState<WhiteLabelConfig>(defaultConfig);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Load from Backend API or localStorage cache
-  useEffect(() => {
-    async function loadConfig() {
-      // 1. Try localStorage for fast first-paint
-      const cached = localStorage.getItem('grammar_white_label');
-      if (cached) {
-        try {
-          setConfig(prev => ({ ...prev, ...JSON.parse(cached) }));
-        } catch {}
-      }
-
-      // 2. Fetch from backend API (InsForge source of truth)
-      try {
-        const response = await fetch('/api/admin/branding', { cache: 'no-store' });
-        const payload = await response.json();
-
-        if (response.ok && payload?.data) {
-          const dbConfig: WhiteLabelConfig = {
-            systemName: payload.data.system_name,
-            tagline: payload.data.tagline,
-            primaryColor: payload.data.primary_color,
-            accentColor: payload.data.accent_color,
-            logoUrl: payload.data.logo_url || '',
-            faviconUrl: payload.data.favicon_url || '',
-          };
-          setConfig(dbConfig);
-          localStorage.setItem('grammar_white_label', JSON.stringify(dbConfig));
-          applyStyles(dbConfig);
-        }
-      } catch (e) {
-        console.error('Failed to fetch white-label from backend', e);
-      }
-      setIsLoading(false);
-    }
-
-    loadConfig();
-  }, []);
+  const isLoading = false;
 
   const applyStyles = (cfg: WhiteLabelConfig) => {
     if (typeof document !== 'undefined') {
       document.documentElement.style.setProperty('--accent', cfg.primaryColor);
-      // Update Title & Favicon
       document.title = cfg.systemName + (cfg.tagline ? ` | ${cfg.tagline}` : '');
       if (cfg.faviconUrl) {
         let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
@@ -89,10 +54,67 @@ export function WhiteLabelProvider({ children }: { children: React.ReactNode }) 
     }
   };
 
+  // Load from Backend API or localStorage cache
+  useEffect(() => {
+    async function loadConfig() {
+      const cached = localStorage.getItem(BRANDING_CACHE_KEY);
+      if (cached) {
+        try {
+          const parsed = { ...defaultConfig, ...JSON.parse(cached) } as WhiteLabelConfig;
+          setConfig(parsed);
+          applyStyles(parsed);
+        } catch {}
+      }
+
+      const lastFailure = Number(sessionStorage.getItem(BRANDING_FAIL_KEY) || '0');
+      if (lastFailure && Date.now() - lastFailure < BRANDING_RETRY_WINDOW_MS) {
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 1500);
+
+      try {
+        const response = await fetch('/api/admin/branding', {
+          cache: 'force-cache',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          sessionStorage.setItem(BRANDING_FAIL_KEY, Date.now().toString());
+          return;
+        }
+
+        const payload = await response.json();
+
+        if (response.ok && payload?.data) {
+          const dbConfig: WhiteLabelConfig = {
+            systemName: payload.data.system_name,
+            tagline: payload.data.tagline,
+            primaryColor: payload.data.primary_color,
+            accentColor: payload.data.accent_color,
+            logoUrl: payload.data.logo_url || '',
+            faviconUrl: payload.data.favicon_url || '',
+          };
+
+          setConfig(dbConfig);
+          localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(dbConfig));
+          applyStyles(dbConfig);
+        }
+      } catch {
+        sessionStorage.setItem(BRANDING_FAIL_KEY, Date.now().toString());
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
+    loadConfig();
+  }, []);
+
   const updateConfig = async (newConfig: Partial<WhiteLabelConfig>) => {
     const updated = { ...config, ...newConfig };
     setConfig(updated);
-    localStorage.setItem('grammar_white_label', JSON.stringify(updated));
+    localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(updated));
     applyStyles(updated);
     
     // Persist through backend API (InsForge)

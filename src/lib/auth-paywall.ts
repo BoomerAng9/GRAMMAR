@@ -285,7 +285,7 @@ export const authService = {
    * Get organizations for a user
    */
   async getUserOrganizations(userId: string) {
-    if (!insforge) return [];
+    if (!insforge) return [] as Organization[];
     
     const { data, error } = await insforge.database
       .from('organization_memberships')
@@ -293,7 +293,14 @@ export const authService = {
       .eq('user_id', userId);
     
     if (error) throw error;
-    return data.map(m => m.organizations);
+
+    return ((data ?? []) as Array<{ organizations: Organization | Organization[] | null }>)
+      .flatMap((membership) => {
+        if (!membership.organizations) return [];
+        return Array.isArray(membership.organizations)
+          ? membership.organizations
+          : [membership.organizations];
+      });
   }
 };
 
