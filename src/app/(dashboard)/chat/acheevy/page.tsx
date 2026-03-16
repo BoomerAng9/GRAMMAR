@@ -37,6 +37,7 @@ export default function AcheevyCentral() {
   const [connectionState, setConnectionState] = useState<'connected' | 'degraded'>('connected');
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  
   const [messages, setMessages] = useState<ChatMessage[]>([seedMessage]);
 
   useEffect(() => {

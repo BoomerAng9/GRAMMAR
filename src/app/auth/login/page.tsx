@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/auth-paywall';
 import { ArrowRight, Github, Eye, EyeOff } from 'lucide-react';
@@ -70,6 +71,7 @@ function LoginPageContent() {
           </h1>
           <p className="text-slate-500 text-sm leading-relaxed max-w-sm font-medium">
             GRAMMAR is the execution engine for translating natural intent into governed technical context.
+            GRAMMAR is the execution engine for translating natural intent into governed technical context. 
             Start chatting to route prompts through ACHEEVY and shape output your team can ship.
           </p>
         </div>

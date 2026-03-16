@@ -12,6 +12,7 @@ export function AuthPromptTimer() {
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
+    // Only set the timer if we are sure there is no user
     if (loading || user) return;
 
     if (typeof window !== 'undefined' && sessionStorage.getItem(SESSION_DISMISS_KEY) === '1') {
@@ -37,6 +38,7 @@ export function AuthPromptTimer() {
             You can keep browsing, or sign up now to save conversations, connect NotebookLM-backed sources, and unlock plan controls.
           </p>
 
+          
           <div className="flex gap-3 pt-2">
             <button
               onClick={() => {
