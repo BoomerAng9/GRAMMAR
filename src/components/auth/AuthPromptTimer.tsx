@@ -1,71 +1,61 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  useDisclosure,
-} from '@nextui-org/react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useAuth } from '@/hooks/useAuth';
+
+const PROMPT_DELAY_MS = 50_000;
+const DISMISS_KEY = 'grammar_auth_prompt_dismissed_v1';
 
 export function AuthPromptTimer() {
-  const { session, loading } = useAuth();
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  const { user, loading } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Only set the timer if we are sure there is no session
-    if (!loading && !session) {
-      const timer = setTimeout(() => {
-        onOpen();
-      }, 45000); // 45 seconds
+    if (loading || user) return;
 
-      return () => clearTimeout(timer);
+    if (typeof window !== 'undefined' && localStorage.getItem(DISMISS_KEY) === '1') {
+      return;
     }
-  }, [session, loading, onOpen]);
 
-  if (session || loading) {
-    return null;
-  }
+    const timer = window.setTimeout(() => {
+      setIsOpen(true);
+    }, PROMPT_DELAY_MS);
+
+    return () => window.clearTimeout(timer);
+  }, [loading, user]);
+
+  if (!isOpen || loading || user) return null;
 
   return (
-    <Modal 
-      isOpen={isOpen} 
-      onOpenChange={onOpenChange}
-      placement="center"
-      backdrop="blur"
-      isDismissable={false} // Force them to interact or close via X
-    >
-      <ModalContent className="bg-white border border-slate-200 text-slate-900">
-        {(onClose) => (
-          <>
-            <ModalHeader className="flex flex-col gap-1 text-xl border-b border-slate-100 pb-4 font-sans font-bold tracking-tight">
-              Unlock the Full <span className="font-script text-2xl text-[#00A3FF]">Grammar</span> Ecosystem
-            </ModalHeader>
-            <ModalBody className="py-6">
-              <p className="text-slate-500 font-sans text-sm font-medium leading-relaxed">
-                You&apos;ve been exploring for a while! To dive deeper, customize your technical context, and leverage the full power of our autonomous engine across Claude, OpenAI, and VS Code, create a free account today.
-              </p>
-            </ModalBody>
-            <ModalFooter className="border-t border-slate-100 pt-4">
-              <Button color="default" variant="light" onPress={onClose} className="text-slate-400 font-bold text-xs uppercase tracking-widest">
-                Continue Browsing
-              </Button>
-              <Button 
-                as={Link} 
-                href="/auth/login" 
-                className="bg-[#00A3FF] text-white font-bold rounded-xl shadow-lg shadow-[#00A3FF33] hover:bg-[#0089D9]"
-              >
-                Sign Up / Login
-              </Button>
-            </ModalFooter>
-          </>
-        )}
-      </ModalContent>
-    </Modal>
+    <div className="fixed inset-0 z-[100] bg-slate-900/45 backdrop-blur-sm p-4 flex items-center justify-center">
+      <div className="w-full max-w-md rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden">
+        <div className="p-6 space-y-4">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400">Keep exploring GRAMMAR</p>
+          <h3 className="text-2xl font-bold text-slate-900">Create your account to save and continue</h3>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            You can keep browsing, or sign up now to save conversations, connect NotebookLM-backed sources, and unlock plan controls.
+          </p>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              onClick={() => {
+                localStorage.setItem(DISMISS_KEY, '1');
+                setIsOpen(false);
+              }}
+              className="px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-50"
+            >
+              Continue browsing
+            </button>
+            <Link
+              href="/auth/login"
+              className="flex-1 text-center px-4 py-2.5 rounded-xl bg-[#00A3FF] text-white text-sm font-bold hover:bg-[#0089D9]"
+            >
+              Create account / Sign in
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

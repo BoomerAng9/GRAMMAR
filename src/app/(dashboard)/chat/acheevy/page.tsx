@@ -12,7 +12,6 @@ import {
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { insforge } from '@/lib/insforge';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -25,24 +24,43 @@ interface ChatMessage {
   timestamp: string;
 }
 
+const seedMessage: ChatMessage = {
+  id: '1',
+  role: 'agent',
+  content: 'I am ACHEEVY, the core orchestrator for GRAMMAR. I interpret intent, coordinate agents, govern context via MIM, and package outcomes. How can I direct the ecosystem for you today?',
+  timestamp: new Date().toLocaleTimeString(),
+};
+
 export default function AcheevyCentral() {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [connectionState, setConnectionState] = useState<'connected' | 'degraded'>('connected');
   const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      role: 'agent',
-      content: "I am ACHEEVY, the core orchestrator for GRAMMAR. I interpret intent, coordinate agents, govern context via MIM, and package outcomes. How can I direct the ecosystem for you today?",
-      timestamp: new Date().toLocaleTimeString()
-    }
-  ]);
+
+  const [messages, setMessages] = useState<ChatMessage[]>([seedMessage]);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
+  }, [messages]);
+
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('acheevy_chat_v1');
+      if (cached) {
+        const parsed = JSON.parse(cached) as ChatMessage[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      setMessages([seedMessage]);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('acheevy_chat_v1', JSON.stringify(messages));
   }, [messages]);
 
   const handleSend = async () => {
@@ -60,34 +78,30 @@ export default function AcheevyCentral() {
     setQuery("");
     setIsTyping(true);
     
-    if (!insforge) {
-      setTimeout(() => {
-        setMessages(prev => [...prev, {
-          id: (Date.now() + 1).toString(),
-          role: 'agent',
-          content: "[SYSTEM ERROR] Offline: Unable to connect to MIM backend context. Please verify InsForge configuration.",
-          timestamp: new Date().toLocaleTimeString()
-        }]);
-        setIsTyping(false);
-      }, 1000);
-      return;
-    }
-
     try {
-      const { data, error } = await insforge.ai.chat.completions.create({
-        model: 'openai/gpt-4o-mini', // Configured model
-        messages: updatedMessages.map(m => ({
-          role: m.role === 'agent' ? 'assistant' : 'user',
-          content: m.content
-        }))
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'openai/gpt-4o-mini',
+          messages: updatedMessages.map(m => ({
+            role: m.role === 'agent' ? 'assistant' : 'user',
+            content: m.content,
+          })),
+        }),
       });
 
-      if (error) {
-        throw new Error(error.message || 'Failed to communicate with ACHEEVY engine');
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to communicate with ACHEEVY engine');
       }
 
-      const reply = data?.choices?.[0]?.message?.content || "No response received.";
+      const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
+      if (!reply) {
+        throw new Error('No response payload returned by AI engine.');
+      }
 
+      setConnectionState('connected');
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'agent',
@@ -96,7 +110,8 @@ export default function AcheevyCentral() {
       }]);
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-      console.error("[ACHEEVY AI Error]:", err);
+      console.error('[ACHEEVY AI Error]:', err);
+      setConnectionState('degraded');
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         role: 'agent',
@@ -120,8 +135,8 @@ export default function AcheevyCentral() {
             <div>
               <h2 className="font-bold text-slate-900 tracking-tight text-sm">ACHEEVY INSTANCE</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Connected: Central Engine</span>
+                <div className={cn('w-1.5 h-1.5 rounded-full', connectionState === 'connected' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500')} />
+                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{connectionState === 'connected' ? 'Connected: Central Engine' : 'Degraded: Check backend keys'}</span>
               </div>
             </div>
           </div>
@@ -186,7 +201,12 @@ export default function AcheevyCentral() {
               type="text" 
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  void handleSend();
+                }
+              }}
               placeholder="Direct ACHEEVY..."
               className="flex-1 bg-transparent px-2 py-3 text-sm font-medium text-slate-900 focus:outline-none placeholder:text-slate-400"
             />
