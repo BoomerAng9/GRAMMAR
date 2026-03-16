@@ -10,8 +10,10 @@ export interface UserProfile {
   role: 'user' | 'admin' | 'operator';
   tier: 'free' | 'pro' | 'enterprise';
   stripe_customer_id: string | null;
+  default_org_id: string | null;
   created_at: string;
 }
+
 
 export interface Subscription {
   id: string;
@@ -32,6 +34,24 @@ export interface TierLimits {
   max_storage_mb: number;
   deep_research: boolean;
   custom_models: boolean;
+}
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+}
+
+export interface MIMPolicy {
+  id: string;
+  organization_id: string;
+  name: string;
+  description: string;
+  type: 'technical' | 'operational' | 'security';
+  rules: any[];
+  is_active: boolean;
+  created_at: string;
 }
 
 export interface PlanFeature {
@@ -173,7 +193,7 @@ export const authService = {
   },
 
   /**
-   * Get user profile with subscription
+   * Get user profile with subscription, auto-creating if missing
    */
   async getProfile(userId: string): Promise<{ profile: UserProfile | null; subscription: Subscription | null }> {
     if (!insforge) return { profile: null, subscription: null };
@@ -183,25 +203,100 @@ export const authService = {
       insforge.database.from('subscriptions').select('*').eq('user_id', userId).single(),
     ]);
 
-    return {
-      profile: profileRes.data as UserProfile | null,
-      subscription: subRes.data as Subscription | null,
-    };
+    let profile = profileRes.data as UserProfile | null;
+    let subscription = subRes.data as Subscription | null;
+
+    // Auto-create if missing (likely first OAuth login)
+    if (!profile) {
+      const { data: session } = await insforge.auth.getCurrentSession();
+      const user = session?.session?.user as any;
+      
+      const { data: newProfile, error: pError } = await insforge.database.from('profiles').insert([{
+        user_id: userId,
+        display_name: user?.metadata?.name || user?.email?.split('@')[0] || 'User',
+        role: 'user',
+        tier: 'free',
+      }]).select().single();
+      
+      if (!pError) profile = newProfile as UserProfile;
+
+      const { data: newSub, error: sError } = await insforge.database.from('subscriptions').insert([{
+        user_id: userId,
+        plan: 'free',
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 100 * 365 * 24 * 60 * 60 * 1000).toISOString(),
+      }]).select().single();
+
+      if (!sError) subscription = newSub as Subscription;
+    }
+
+    return { profile, subscription };
   },
 
   /**
    * Update profile
    */
-  async updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) {
+  async updateProfile(userId: string, updates: Partial<Pick<UserProfile, 'display_name' | 'avatar_url' | 'default_org_id'>>) {
     if (!insforge) throw new Error('InsForge client not initialized');
-    const { data, error } = await insforge.database
+    const { error } = await insforge.database
       .from('profiles')
       .update(updates)
       .eq('user_id', userId);
     if (error) throw error;
-    return data;
+    return true;
   },
+
+  /**
+   * Create a new organization and link the current user as owner
+   */
+  async createOrganization(userId: string, name: string) {
+    if (!insforge) throw new Error('InsForge client not initialized');
+    
+    const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    
+    // 1. Create Organization
+    const { data: org, error: orgError } = await insforge.database
+      .from('organizations')
+      .insert([{ name, slug }])
+      .select()
+      .single();
+    
+    if (orgError) throw orgError;
+
+    // 2. Create Membership
+    const { error: memError } = await insforge.database
+      .from('organization_memberships')
+      .insert([{
+        organization_id: org.id,
+        user_id: userId,
+        role: 'owner'
+      }]);
+    
+    if (memError) throw memError;
+
+    // 3. Set as default org
+    await this.updateProfile(userId, { default_org_id: org.id });
+
+    return org;
+  },
+
+  /**
+   * Get organizations for a user
+   */
+  async getUserOrganizations(userId: string) {
+    if (!insforge) return [];
+    
+    const { data, error } = await insforge.database
+      .from('organization_memberships')
+      .select('organization_id, organizations(*)')
+      .eq('user_id', userId);
+    
+    if (error) throw error;
+    return data.map(m => m.organizations);
+  }
 };
+
 
 
 // ─── Paywall Service ──────────────────────────────────────
@@ -287,4 +382,32 @@ export const paywallService = {
     if (error) throw error;
     return data;
   },
+
+  async getPolicies(orgId: string): Promise<{ data: MIMPolicy[] | null, error: any }> {
+    if (!insforge) return { data: null, error: 'InsForge client not initialized' };
+    const { data, error } = await insforge.database.from('policies')
+      .select('*')
+      .eq('organization_id', orgId)
+      .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async createPolicy(policy: Omit<MIMPolicy, 'id' | 'created_at'>): Promise<{ data: MIMPolicy | null, error: any }> {
+    if (!insforge) return { data: null, error: 'InsForge client not initialized' };
+    const { data, error } = await insforge.database.from('policies')
+      .insert([policy])
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async updatePolicy(id: string, updates: Partial<MIMPolicy>): Promise<{ data: any, error: any }> {
+    if (!insforge) return { data: null, error: 'InsForge client not initialized' };
+    const { data, error } = await insforge.database.from('policies')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+    return { data, error };
+  }
 };

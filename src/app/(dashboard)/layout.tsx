@@ -103,11 +103,97 @@ function UserDropdown() {
   );
 }
 
+function OrgSwitcher() {
+  const { organization, organizations, switchOrg } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 w-full p-2 rounded-xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm bg-white group"
+      >
+        <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center text-white text-[10px] font-black shrink-0 shadow-lg group-hover:scale-110 transition-transform">
+          {organization?.name?.charAt(0).toUpperCase() || 'G'}
+        </div>
+        <div className="flex-1 text-left truncate">
+          <p className="text-[10px] font-extrabold text-[#00A3FF] uppercase tracking-widest leading-none mb-1">Organization</p>
+          <p className="text-xs font-bold text-slate-900 truncate">{organization?.name || 'Loading...'}</p>
+        </div>
+        <ChevronRight className={cn("w-4 h-4 text-slate-300 transition-transform", isOpen && "rotate-90")} />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 bottom-full mb-2 w-64 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 py-3 overflow-hidden ring-1 ring-black/5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="px-4 pb-2 mb-2 border-b border-slate-100">
+             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Select Runtime</p>
+          </div>
+          
+          <div className="max-h-60 overflow-y-auto px-2 space-y-1">
+            {organizations.map((org) => (
+              <button
+                key={org.id}
+                onClick={() => {
+                  switchOrg(org.id);
+                  setIsOpen(false);
+                }}
+                className={cn(
+                  "flex items-center gap-3 w-full p-2.5 rounded-xl transition-all group",
+                  org.id === organization?.id 
+                    ? "bg-[#00A3FF08] border border-[#00A3FF22]" 
+                    : "hover:bg-slate-50 border border-transparent"
+                )}
+              >
+                <div className={cn(
+                  "w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[8px] font-bold shrink-0",
+                  org.id === organization?.id ? "bg-[#00A3FF] text-white" : "text-slate-400 group-hover:text-slate-600"
+                )}>
+                  {org.name.charAt(0).toUpperCase()}
+                </div>
+                <span className={cn(
+                  "text-xs font-bold truncate flex-1 text-left",
+                  org.id === organization?.id ? "text-slate-900" : "text-slate-500 group-hover:text-slate-900"
+                )}>
+                  {org.name}
+                </span>
+                {org.id === organization?.id && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-[#00A3FF] shadow-[0_0_8px_rgba(0,163,255,0.6)]" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-slate-100 px-2">
+            <Link 
+              href="/onboarding"
+              className="flex items-center gap-2 w-full p-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all border border-dashed border-slate-200"
+            >
+              <div className="w-6 h-6 rounded bg-slate-50 flex items-center justify-center text-slate-400">
+                +
+              </div>
+              Create Organization
+            </Link>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, organization, organizations, loading } = useAuth();
   const { config } = useWhiteLabel();
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
   const { stats, recentEvents } = useSystemStatus();
+
+  // Redirect to onboarding if no organization
+  useEffect(() => {
+    if (!loading && user && organizations.length === 0 && pathname !== '/pricing') {
+      router.push('/onboarding');
+    }
+  }, [user, organizations, loading, pathname, router]);
 
   const navItems = [
     { name: 'Board', href: '/board', icon: LayoutDashboard },
@@ -139,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
         </div>
 
-        <nav className="flex-1 px-4 py-4 space-y-1">
+        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/board' && pathname.startsWith(item.href));
             return (
@@ -149,7 +235,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium",
                   isActive 
-                    ? "text-white" 
+                    ? "text-white shadow-lg shadow-[#00A3FF33]" 
                     : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                 )}
                 style={isActive ? { backgroundColor: config.primaryColor } : {}}
@@ -164,23 +250,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
-          <div className="bg-slate-50 rounded-2xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">System State</span>
+        <div className="p-4 space-y-4 border-t border-slate-100">
+          <OrgSwitcher />
+          
+          <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Runtime State</span>
               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                <span className="text-[10px] font-bold text-emerald-600">LIVE</span>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-black text-emerald-600">LIVE</span>
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">MIM Governance</span>
-                <span className="text-slate-900 font-mono">OK</span>
+              <div className="flex justify-between text-[10px] font-bold">
+                <span className="text-slate-500">Governance</span>
+                <span className="text-slate-900 font-mono">ACTIVE</span>
               </div>
-              <div className="flex justify-between text-[10px]">
-                <span className="text-slate-500">TLI Sync</span>
-                <span className="text-slate-900 font-mono">100%</span>
+              <div className="flex justify-between text-[10px] font-bold">
+                <span className="text-slate-500">Org ID</span>
+                <span className="text-slate-900 font-mono truncate ml-4">
+                  {organization?.id?.slice(0, 8) || '---'}
+                </span>
               </div>
             </div>
           </div>

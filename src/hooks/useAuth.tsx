@@ -11,6 +11,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   subscription: Subscription | null;
   tierLimits: TierLimits | null;
+  organization: any | null;
+  organizations: any[];
   loading: boolean;
   
   // Auth actions
@@ -19,7 +21,12 @@ interface AuthContextType {
   signInWithOAuth: (provider: 'google' | 'github') => Promise<void>;
   signOut: () => Promise<void>;
   
+  // Organization actions
+  createOrg: (name: string) => Promise<void>;
+  switchOrg: (orgId: string) => Promise<void>;
+  
   // Paywall helpers
+
   canAccess: (feature: keyof TierLimits) => boolean;
   isFeatureGated: (feature: keyof TierLimits) => boolean;
   trackUsage: (metric: string, amount?: number) => Promise<void>;
@@ -34,6 +41,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [tierLimits, setTierLimits] = useState<TierLimits | null>(null);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [organization, setOrganization] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Load session on mount
@@ -55,6 +64,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (p) {
           const limits = await paywallService.getTierLimits(p.tier);
           setTierLimits(limits);
+
+          // Load organizations
+          const orgs = await authService.getUserOrganizations(session.user.id);
+          setOrganizations(orgs);
+          
+          if (orgs.length > 0) {
+            const activeOrg = orgs.find((o: any) => o.id === p.default_org_id) || orgs[0];
+            setOrganization(activeOrg);
+          }
+
         }
       }
     } catch (err) {
@@ -65,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // ─── Auth Actions ───────────────────────────────────────
+
 
   async function signUp(email: string, password: string, displayName?: string) {
     await authService.signUp(email, password, displayName);
@@ -108,6 +128,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await paywallService.trackUsage(user.id, metric, amount);
   }
 
+  // ─── Organization Actions ───────────────────────────────
+
+  async function createOrg(name: string) {
+    if (!user) return;
+    await authService.createOrganization(user.id, name);
+    await loadSession();
+  }
+
+  async function switchOrg(orgId: string) {
+    if (!user) return;
+    await authService.updateProfile(user.id, { default_org_id: orgId });
+    await loadSession();
+  }
+
   // ─── Render ─────────────────────────────────────────────
 
   return (
@@ -116,11 +150,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profile,
       subscription,
       tierLimits,
+      organization,
+      organizations,
       loading,
       signUp,
       signIn,
       signInWithOAuth,
       signOut,
+      createOrg,
+      switchOrg,
       canAccess,
       isFeatureGated,
       trackUsage,
@@ -129,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
 
 // ─── Hook ─────────────────────────────────────────────────
 

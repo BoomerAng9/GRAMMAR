@@ -34,6 +34,9 @@ Use **InsForge** agents to expedite UI building within the `agenticui-nextui` fr
 - [x] **Paywall**: Stripe-integrated Pro/Enterprise tiers.
 - [x] **White-Labeling**: Real-time theme injection via InsForge.
 - [x] **TLI Infrastructure**: SQL schema for context packs and history persistence.
+- [x] **Multi-Tenancy**: Organizations + Membership + RLS isolation.
+- [x] **Onboarding**: Customer setup flow and automatic profile provisioning.
+- [x] **MIM Policy Manager**: Governance framework for interpretable and operational laws.
 - [ ] **Stripe Production Keys**: Awaiting production secret injection.
 - [ ] **NotebookLM API Key**: Awaiting production key injection in `.env.local`.
 
