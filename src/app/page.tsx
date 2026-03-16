@@ -14,7 +14,11 @@ import {
   Sparkles,
   Zap,
   Activity,
-  Box
+  Box,
+  Gavel,
+  Database,
+  Search,
+  Code2
 } from 'lucide-react';
 
 function cn(...inputs: ClassValue[]) {
@@ -45,9 +49,9 @@ export default function Home() {
             </Link>
             <Link
               href="/chat/acheevy"
-              className="rounded-full bg-[#0F172A] px-6 py-3 text-sm font-bold text-white transition-all hover:scale-105 shadow-lg shadow-slate-900/20"
+              className="rounded-2xl bg-[#0F172A] px-6 py-3 text-sm font-bold text-white transition-all hover:scale-105 shadow-lg shadow-slate-900/20"
             >
-              Start Chatting
+              Start Build
             </Link>
           </div>
         </div>
@@ -79,9 +83,9 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="text-balance text-6xl font-black leading-[0.9] tracking-[-.04em] text-slate-900 sm:text-7xl lg:text-8xl mb-8"
             >
-              Ordinary language in.
+              Human intent into.
               <br />
-              <span className="text-[#00A3FF]">Technical language out.</span>
+              <span className="text-[#00A3FF]">Governed execution.</span>
             </motion.h1>
 
             <motion.p 
@@ -90,186 +94,152 @@ export default function Home() {
               transition={{ duration: 0.8, delay: 0.4 }}
               className="mx-auto max-w-2xl text-pretty text-lg font-medium leading-relaxed text-slate-600 sm:text-xl mb-12"
             >
-              GRAMMAR is the execution engine for translating human intent into governed, multi-role technical execution. 
-              Orchestrate agents, sync Deep Research, and ship production-ready context.
+              GRAMMAR is an API-first, vision-first action runtime. We interpret, structure, route, coordinate, and package work through a governed multi-role ecosystem.
             </motion.p>
 
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
-              className="flex flex-col items-center justify-center gap-6 sm:flex-row"
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
             >
-              <Link 
+              <Link
                 href="/chat/acheevy"
-                className="group relative inline-flex items-center gap-3 rounded-full bg-[#00A3FF] px-10 py-5 text-lg font-bold text-white shadow-xl shadow-[#00A3FF44] transition-all hover:scale-105 active:scale-95"
+                className="w-full sm:w-auto rounded-2xl bg-[#0F172A] px-10 py-5 text-base font-black text-white transition-all hover:scale-105 active:scale-95 shadow-xl shadow-slate-900/20 flex items-center justify-center gap-3"
               >
-                <div className="absolute inset-0 rounded-full bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity blur-xl" />
-                <span className="relative z-10 flex items-center gap-3">
-                  Launch ACHEEVY
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                </span>
+                Launch Runtime
+                <ArrowRight className="w-5 h-5" />
               </Link>
               <Link
-                href="/research"
-                className="inline-flex items-center gap-3 rounded-full border border-slate-300 bg-white px-10 py-5 text-lg font-bold text-slate-700 transition-all hover:border-slate-400 hover:bg-slate-50 active:scale-95 shadow-sm"
+                href="#architecture"
+                className="w-full sm:w-auto rounded-2xl bg-white border border-slate-200 px-10 py-5 text-base font-black text-slate-900 transition-all hover:bg-slate-50 flex items-center justify-center gap-3"
               >
-                Researcher Hub
+                Full Manifest
               </Link>
             </motion.div>
+          </div>
+        </section>
+
+        {/* Feature Grid - Core Runtime */}
+        <section id="architecture" className="py-24 bg-white border-y border-slate-100">
+          <div className="mx-auto max-w-7xl px-6 lg:px-12">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl mb-4">Core Runtime Infrastructure</h2>
+              <p className="text-slate-500 font-medium">The governed engines that drive GRAMMAR's autonomous orchestration.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="p-8 rounded-3xl bg-slate-50/50 border border-slate-100 hover:border-[#00A3FF33] transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6 text-[#00A3FF]">
+                  <Zap className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 tracking-tight">NTNTN Framing</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                  Frames and normalizes human intent into objective, governed context maps. No guesses, just objective structure from the first prompt.
+                </p>
+              </div>
+
+              <div className="p-8 rounded-3xl bg-slate-50/50 border border-slate-100 hover:border-[#00A3FF33] transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6 text-[#00A3FF]">
+                  <Gavel className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 tracking-tight">MIM Governance</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                  Memory, Intent, and Manifest discipline. Not an agent, but a structural law that ensures every action is traceable, indexed, and compliant.
+                </p>
+              </div>
+
+              <div className="p-8 rounded-3xl bg-slate-50/50 border border-slate-100 hover:border-[#00A3FF33] transition-all group">
+                <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-6 text-[#00A3FF]">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <h3 className="text-xl font-bold mb-3 tracking-tight">ACHEEVY Orchestration</h3>
+                <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                  Dynamic sequencing, checkpoints, and huddles. ACHEEVY coordinates parallel execution branches into high-fidelity unified outcomes.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Roles Section */}
-        <section id="roles" className="py-24 bg-white border-y border-slate-200 overflow-hidden">
+        <section id="roles" className="py-24 bg-slate-50 overflow-hidden">
           <div className="mx-auto max-w-7xl px-6 lg:px-12">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-              {[
-                {
-                  id: 'acheevy',
-                  icon: Network,
-                  title: 'ACHEEVY',
-                  role: 'The Orchestrator',
-                  desc: 'Sequences tasks, manages checkpoints, and maintains the overall board state. ACHEEVY ensures parallel agent work remains aligned with your objective.',
-                  color: 'bg-slate-900',
-                  accent: 'text-slate-500'
-                },
-                {
-                  id: 'mim',
-                  icon: ShieldCheck,
-                  title: 'MIM',
-                  role: 'Governance Layer',
-                  desc: 'Governs context, revisions, and distribution. Not an agent, but a law-driven framework that enforces technical constraints and quality standards.',
-                  color: 'bg-[#00A3FF]',
-                  accent: 'text-[#00A3FF]'
-                },
-                {
-                  id: 'boomer_angs',
-                  icon: Cpu,
-                  title: 'Boomer_Angs',
-                  role: 'Execution Roles',
-                  desc: 'Specialized agents acting on governed context. Whether researching, coding, or optimizing, Boomer_Angs execute the technical heavy lifting.',
-                  color: 'bg-emerald-500',
-                  accent: 'text-emerald-600'
-                }
-              ].map((role, i) => (
-                <motion.div 
-                  key={role.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.6, delay: i * 0.2 }}
-                  className="space-y-6 group p-8 rounded-[2.5rem] hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100"
-                >
-                  <motion.div 
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className={twMerge("w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-slate-200", role.color)}
-                  >
-                    <role.icon className="w-8 h-8" />
-                  </motion.div>
-                  <h3 className="text-2xl font-black tracking-tight text-slate-900">{role.title}</h3>
-                  <p className={twMerge("text-xs font-black leading-relaxed uppercase tracking-[0.2em]", role.accent)}>{role.role}</p>
-                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    {role.desc}
-                  </p>
-                </motion.div>
-              ))}
+            <div className="flex flex-col lg:flex-row items-center gap-16">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#00A3FF1A] text-[#00A3FF] mb-6">
+                  <Database className="w-4 h-4" />
+                  <span className="text-xs font-black uppercase tracking-widest">Execution Branches</span>
+                </div>
+                <h2 className="text-4xl font-black tracking-tight text-slate-900 mb-6 leading-[1.1]">Specialized roles for every capability class.</h2>
+                <div className="space-y-6">
+                  {[
+                    { icon: Search, title: 'DeerFlow', desc: 'Research-heavy search, crawl, and synthesis branches.' },
+                    { icon: Code2, title: 'OpenSandbox', desc: 'Isolated code, browser, and runtime operations.' },
+                    { icon: Network, title: 'Picker_Ang', desc: 'Capability-first routing based on cost, quality, and latency.' }
+                  ].map((role) => (
+                    <div key={role.title} className="flex gap-4 p-4 rounded-2xl bg-white border border-slate-100 shadow-sm">
+                      <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-900 shrink-0">
+                        <role.icon className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-slate-900">{role.title}</h4>
+                        <p className="text-sm text-slate-500 font-medium">{role.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex-1 w-full max-w-lg">
+                <div className="relative aspect-square bg-[#0F172A] rounded-[40px] shadow-2xl overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#00A3FF33] to-transparent opacity-50" />
+                   <div className="absolute inset-x-8 top-8 bottom-8 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-8 flex flex-col justify-between">
+                    <div className="space-y-4">
+                      <div className="h-2 w-24 bg-white/10 rounded" />
+                      <div className="h-8 w-48 bg-[#00A3FF] rounded-lg" />
+                      <div className="space-y-2">
+                        <div className="h-2 w-full bg-white/5 rounded" />
+                        <div className="h-2 w-4/5 bg-white/5 rounded" />
+                        <div className="h-2 w-3/4 bg-white/5 rounded" />
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="h-20 bg-white/5 rounded-2xl border border-white/10 p-4">
+                        <div className="h-2 w-12 bg-[#00A3FF] rounded mb-2" />
+                        <div className="h-4 w-16 bg-white/20 rounded" />
+                      </div>
+                      <div className="h-20 bg-white/5 rounded-2xl border border-white/10 p-4">
+                        <div className="h-2 w-12 bg-emerald-500 rounded mb-2" />
+                        <div className="h-4 w-16 bg-white/20 rounded" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Architecture Spotlight */}
-        <section id="architecture" className="py-32 bg-[#F9FAFB] relative overflow-hidden">
-          <div className="mx-auto max-w-7xl px-6 lg:px-12">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.98 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.8 }}
-              className="bg-slate-900 rounded-[3rem] p-12 lg:p-20 text-white relative overflow-hidden border border-slate-800 shadow-2xl"
+        {/* CTA */}
+        <section className="py-24 bg-[#0F172A] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[#00A3FF] blur-[150px] opacity-20 -mr-48 -mt-48" />
+          <div className="mx-auto max-w-7xl px-6 lg:px-12 text-center relative z-10">
+            <h2 className="text-4xl font-black text-white mb-8 tracking-tight">Ready to launch your action runtime?</h2>
+            <Link
+              href="/chat/acheevy"
+              className="inline-flex items-center gap-3 rounded-2xl bg-[#00A3FF] px-10 py-5 text-lg font-black text-white shadow-xl shadow-[#00A3FF44] transition-all hover:scale-105 active:scale-95"
             >
-              <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-[#00A3FF11] to-transparent pointer-events-none" />
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                <div className="space-y-10">
-                  <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                  >
-                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00A3FF]">Proprietary Stack</span>
-                    <h2 className="text-4xl lg:text-5xl font-black tracking-tight mt-4">Vision-First,<br />API-Driven Intelligence.</h2>
-                  </motion.div>
-                  
-                  <div className="space-y-6">
-                    {[
-                      { icon: Zap, title: "Deep Research Integration", desc: "Direct bridge to NotebookLM-backed context packs and multimodal vector indexing." },
-                      { icon: Activity, title: "Real-time Trace Layers", desc: "Every intent is normalized, recorded, and verifiable through evidence-backed response generation." },
-                      { icon: Box, title: "Modular Packaging", desc: "Outcome bundles including manifests, retrieval paths, and approval states for seamless handoff." }
-                    ].map((item, i) => (
-                      <motion.div 
-                        key={item.title}
-                        initial={{ opacity: 0, x: -20 }}
-                        whileInView={{ opacity: 1, x: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6, delay: 0.4 + (i * 0.1) }}
-                        className="flex gap-4"
-                      >
-                        <div className="shrink-0 w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center border border-white/10">
-                          <item.icon className="w-5 h-5 text-[#00A3FF]" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-sm uppercase tracking-widest text-white mb-2">{item.title}</h4>
-                          <p className="text-slate-400 text-sm leading-relaxed">{item.desc}</p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="relative aspect-square lg:aspect-auto lg:h-[500px] bg-white/5 rounded-[2rem] border border-white/10 p-8 shadow-inner overflow-hidden">
-                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,163,255,0.05),transparent_70%)]" />
-                   <div className="relative h-full flex flex-col items-center justify-center text-center p-8 border border-dashed border-white/10 rounded-2xl">
-                      <Cpu className="w-20 h-20 text-[#00A3FF] mb-6 animate-pulse" />
-                      <div className="space-y-2">
-                        <p className="text-xs font-mono text-[#00A3FF] tracking-tighter">ENGINE_STATE: ACTIVE</p>
-                        <p className="text-xl font-bold tracking-tight">Technical Language Index</p>
-                        <p className="text-xs text-slate-500 font-medium">Ready for multimodal ingestion.</p>
-                      </div>
-                      
-                      <div className="absolute bottom-8 inset-x-8">
-                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                          <div className="h-full bg-[#00A3FF] w-2/3" />
-                        </div>
-                        <div className="flex justify-between mt-2 text-[10px] font-mono text-slate-500">
-                          <span>SYNCING...</span>
-                          <span>67%</span>
-                        </div>
-                      </div>
-                   </div>
-                </div>
-              </div>
-            </motion.div>
+              Initialize GRAMMAR
+              <ChevronRight className="w-6 h-6" />
+            </Link>
           </div>
         </section>
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-16">
-        <div className="mx-auto max-w-7xl px-6 lg:px-12">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-            <Image src="/grammar-logo-transparent.svg" alt="GRAMMAR" width={140} height={32} className="h-8 w-auto opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500" />
-            
-            <div className="flex gap-12 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-              <Link href="#" className="hover:text-slate-900 transition-colors">Privacy Policy</Link>
-              <Link href="#" className="hover:text-slate-900 transition-colors">Terms of Service</Link>
-              <Link href="#" className="hover:text-slate-900 transition-colors">Contact</Link>
-            </div>
-
-            <div className="text-xs font-mono text-slate-400 font-bold tracking-wider">
-              SYS.v0.1.0 // ACTIVE
-            </div>
-          </div>
+      <footer className="bg-white py-12 border-t border-slate-100">
+        <div className="mx-auto max-w-7xl px-6 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-8">
+          <Image src="/grammar-logo-transparent.svg" alt="GRAMMAR" width={140} height={32} className="h-8 w-auto opacity-50 grayscale" />
+          <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">© 2026 ACHIEVEMOR // GRAMMAR RUNTIME</p>
         </div>
       </footer>
     </div>
