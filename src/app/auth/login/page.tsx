@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/auth-paywall';
 import { ArrowRight, Github, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextRoute = searchParams.get('redirectTo') || '/board';
@@ -56,7 +56,7 @@ export default function LoginPage() {
         <div>
           <div className="flex items-center gap-3 mb-16">
             <Image 
-              src="/grammar-logo.png" 
+              src="/grammar-logo-on-white.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
@@ -66,12 +66,11 @@ export default function LoginPage() {
           </div>
 
           <h1 className="text-3xl font-bold leading-tight mb-4 text-slate-900 font-sans tracking-tight">
-            Governed AI<br />Action Runtime
+            Ordinary language in.<br />technical language out.
           </h1>
           <p className="text-slate-500 text-sm leading-relaxed max-w-sm font-medium">
-            Turn human intent into governed, multi-role execution. 
-            GRAMMAR orchestrates agents, enforces policies, and delivers 
-            evidence-backed outcomes.
+            GRAMMAR is the execution engine for translating natural intent into governed technical context.
+            Start chatting to route prompts through ACHEEVY and shape output your team can ship.
           </p>
         </div>
 
@@ -94,7 +93,7 @@ export default function LoginPage() {
           {/* Mobile brand (hidden on lg) */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <Image 
-              src="/grammar-logo.png" 
+              src="/grammar-logo-on-white.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
@@ -108,7 +107,7 @@ export default function LoginPage() {
           </h2>
           <p className="text-sm text-slate-500 mb-8 font-medium">
             {mode === 'signin'
-              ? 'Sign in to access your Circuit Box.'
+              ? 'Sign in to access your GRAMMAR workspace.'
               : 'Start with the free tier. Upgrade anytime.'}
           </p>
 
@@ -246,5 +245,14 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F9FAFB]" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

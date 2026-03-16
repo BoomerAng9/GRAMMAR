@@ -104,10 +104,7 @@ class NotebookLMClient {
       };
     } catch (error) {
       console.error('[NotebookLM] Query error:', error);
-      return {
-        answer: "I encountered an error while researching your sources. Please check the TLI connection.",
-        citations: []
-      };
+      throw new Error('NotebookLM query failed. Verify API key, project ID, and notebook/source wiring.');
     }
   }
 }
