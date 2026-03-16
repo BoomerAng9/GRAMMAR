@@ -27,7 +27,7 @@ export default function Home() {
       <nav className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/80 backdrop-blur-md">
         <div className="mx-auto flex h-20 w-full max-w-7xl items-center justify-between px-6 lg:px-12">
           <Link href="/" className="inline-flex items-center" aria-label="GRAMMAR Home">
-            <Image src="/grammar-logo-transparent.svg" alt="GRAMMAR" width={180} height={40} className="h-10 w-auto" priority />
+            <Image src="/grammar-logo.svg" alt="GRAMMAR" width={180} height={40} className="h-10 w-auto" priority />
           </Link>
 
           <div className="hidden md:flex items-center gap-8">
@@ -271,7 +271,7 @@ export default function Home() {
 
       <footer className="bg-white py-12 border-t border-slate-100">
         <div className="mx-auto max-w-7xl px-6 lg:px-12 flex flex-col md:flex-row justify-between items-center gap-8">
-          <Image src="/grammar-logo-transparent.svg" alt="GRAMMAR" width={140} height={32} className="h-8 w-auto opacity-50 grayscale" />
+          <Image src="/grammar-logo.svg" alt="GRAMMAR" width={140} height={32} className="h-8 w-auto opacity-50 grayscale" />
           <p className="text-slate-400 text-sm font-bold uppercase tracking-widest">&copy; 2026 ACHIEVEMOR // GRAMMAR</p>
         </div>
       </footer>

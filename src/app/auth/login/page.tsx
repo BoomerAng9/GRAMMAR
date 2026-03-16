@@ -56,7 +56,7 @@ function LoginPageContent() {
         <div>
           <div className="flex items-center gap-3 mb-16">
             <Image 
-              src="/grammar-logo-on-white.svg" 
+              src="/grammar-logo.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
@@ -94,7 +94,7 @@ function LoginPageContent() {
           {/* Mobile brand (hidden on lg) */}
           <div className="lg:hidden flex items-center gap-3 mb-10">
             <Image 
-              src="/grammar-logo-on-white.svg" 
+              src="/grammar-logo.svg" 
               alt="GRAMMAR Logo" 
               width={140} 
               height={40} 
