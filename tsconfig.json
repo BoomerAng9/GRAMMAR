@@ -36,6 +36,9 @@
   ],
   "exclude": [
     "node_modules",
-    "src_old"
+    "src_old",
+    "tests",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }
