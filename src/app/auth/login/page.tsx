@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authService } from '@/lib/auth-paywall';
 import { ArrowRight, Github, Eye, EyeOff } from 'lucide-react';
@@ -35,8 +34,8 @@ function LoginPageContent() {
         await authService.signIn(email, password);
         router.replace(nextRoute);
       }
-    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-      setError(err.message || 'Authentication failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
       setLoading(false);
     }
@@ -45,8 +44,8 @@ function LoginPageContent() {
   async function handleOAuth(provider: 'google' | 'github') {
     try {
       await authService.signInWithOAuth(provider);
-    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
-      setError(err.message || 'OAuth failed');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'OAuth failed');
     }
   }
 
@@ -192,6 +191,7 @@ function LoginPageContent() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  title={showPassword ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}

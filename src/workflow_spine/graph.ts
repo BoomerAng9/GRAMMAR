@@ -1,7 +1,9 @@
 import { StateGraph, Annotation, START, END } from "@langchain/langgraph";
-import { ntntn, NormalizedIntent } from "../core_runtime/ntntn";
+import { NormalizedIntent } from "../core_runtime/ntntn";
 import { mim, MIMContextPack } from "../core_runtime/mim";
 import { acheevy, ActionBoardState } from "../core_runtime/acheevy";
+import type { AgentWorkloadStep } from "../core_runtime/agent_fleet";
+import type { BoomerAngResult } from "../execution_branches/boomer_angs";
 
 /**
  * Workflow Spine - LangGraph Definition
@@ -14,9 +16,9 @@ const StateAnnotation = Annotation.Root({
   orgId: Annotation<string>(),
   normalized: Annotation<NormalizedIntent | null>(),
   context: Annotation<MIMContextPack | null>(),
-  plan: Annotation<any[]>(),
+  plan: Annotation<AgentWorkloadStep[]>(),
   boardState: Annotation<ActionBoardState | null>(),
-  outputs: Annotation<any[]>(),
+  outputs: Annotation<BoomerAngResult[]>(),
   error: Annotation<string | null>(),
 });
 
@@ -30,8 +32,8 @@ const huddleNode = async (state: typeof StateAnnotation.State) => {
       plan: result.plan,
       boardState: result.state
     };
-  } catch (err: any) {
-    return { error: err.message };
+  } catch (err: unknown) {
+    return { error: err instanceof Error ? err.message : 'Huddle failed' };
   }
 };
 
@@ -63,8 +65,9 @@ const executeNode = async (state: typeof StateAnnotation.State) => {
       boardState: result.state,
       outputs: result.state.results
     };
-  } catch (err: any) {
-    return { error: `Runtime Error: ${err.message}` };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown runtime error';
+    return { error: `Runtime Error: ${message}` };
   }
 };
 

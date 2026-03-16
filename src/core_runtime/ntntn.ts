@@ -46,7 +46,19 @@ Return a JSON object with the following structure:
         response_format: { type: 'json_object' }
       });
 
-      const result = JSON.parse(completion.choices[0].message.content);
+      const payload = 'data' in completion ? completion.data : completion;
+      const error = 'error' in completion ? completion.error : null;
+
+      if (error) {
+        throw new Error(error.message || 'Intent normalization failed');
+      }
+
+      const rawContent = payload?.choices?.[0]?.message?.content;
+      if (!rawContent) {
+        throw new Error('Intent normalization returned an empty response');
+      }
+
+      const result = JSON.parse(rawContent);
       return result as NormalizedIntent;
     } catch (error) {
       console.error('NTNTN Normalization Error:', error);

@@ -67,7 +67,17 @@ export const mim = {
         input: content
       });
 
-      const embedding = response.data[0].embedding;
+      const payload = 'data' in response ? response.data : response;
+      const error = 'error' in response ? response.error : null;
+
+      if (error) {
+        throw new Error(error.message || 'Embedding generation failed');
+      }
+
+      const embedding = payload?.[0]?.embedding;
+      if (!embedding) {
+        throw new Error('Embedding payload was empty');
+      }
 
       // Store in memory_store table (hypothetical table for long-term memory)
       await insforge.database.from('memory_store').insert([{

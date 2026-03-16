@@ -56,13 +56,23 @@ GRAMMAR/
 - **NTNTN**: Frames and normalizes user intent into an objective context.
 - **MIM**: Governs context, revisions, memory, and distribution. *Explicitly NOT an agent.*
 - **ACHEEVY**: Orchestrates sequencing, huddles, and checkpoints.
-- **Boomer_Angs**: Specialized execution roles (Research, Coding, Analysis).
+- **Agent Fleet**: Organization-scoped runtime registry that maps launch workload to active agents and recommended execution order.
+- **Boomer_Angs**: Specialized execution roles (Research, Coding, Analysis) selected from the fleet and attached to governed workload steps.
 - **Picker_Ang**: Capability-first routing logic.
 - **BuildSmith**: Assembles approved deliverables for packaging.
 - **Review/Hone**: Validates, corrects, and gates releases.
 - **Packaging**: Prepares handoff bundles and evidence manifests.
 
+## Launch Flow
+
+1. **Huddle**: NTNTN frames the objective and MIM loads governed context for the active organization.
+2. **Fleet Plan**: ACHEEVY asks the Agent Fleet for a recommended workload sequence and Picker_Ang resolves the best capability for each step.
+3. **Execution**: Boomer_Ang execution roles run structured workload steps with assigned agent identity, reason, and expected output.
+4. **Assembly**: BuildSmith creates a release manifest with lineage for every contributing agent.
+5. **Gate + Package**: Review/Hone approves the manifest and Packaging produces the final handoff bundle.
+
 ## Technical Stack
+
 - **Framework**: Next.js 14 (App Router)
 - **Runtime**: Node.js/TypeScript
 - **BaaS**: InsForge (PostgreSQL, Auth, Storage, AI)

@@ -3,6 +3,8 @@
  * Routes needs by capability first, provider second.
  */
 
+import { agentFleet } from './agent_fleet';
+
 export interface CapabilityMetadata {
   id: string;
   name: string;
@@ -34,6 +36,36 @@ export const CAPABILITY_REGISTRY: CapabilityMetadata[] = [
     latency_index: 9,
     quality_index: 10,
     tags: ['research', 'slow', 'comprehensive']
+  },
+  {
+    id: 'launch-readiness',
+    name: 'Launch Readiness Analyst',
+    type: 'branch',
+    provider: 'Boomer_Ang Analyst',
+    cost_index: 4,
+    latency_index: 3,
+    quality_index: 9,
+    tags: ['launch', 'analysis', 'risk']
+  },
+  {
+    id: 'build-runtime',
+    name: 'Runtime Builder',
+    type: 'branch',
+    provider: 'Boomer_Ang Builder',
+    cost_index: 5,
+    latency_index: 4,
+    quality_index: 9,
+    tags: ['coding', 'build', 'integration', 'agent']
+  },
+  {
+    id: 'general-analysis',
+    name: 'General Analysis',
+    type: 'llm',
+    provider: 'Boomer_Ang Analyst',
+    cost_index: 3,
+    latency_index: 2,
+    quality_index: 8,
+    tags: ['analysis', 'planning']
   }
 ];
 
@@ -46,7 +78,27 @@ export const pickerAng = {
 
     if (matches.length === 0) return null;
 
-    // Pick best match (simplistic for now: highest quality)
-    return matches.sort((a, b) => b.quality_index - a.quality_index)[0];
+    const prefersSpeed = constraints.some((constraint) => constraint.toLowerCase().includes('fast'));
+    const prefersQuality = constraints.some((constraint) =>
+      constraint.toLowerCase().includes('quality') || constraint.toLowerCase().includes('launch'),
+    );
+
+    const scored = matches
+      .map((match) => {
+        const fleetBoost = agentFleet.list().some((agent) => agent.provider.includes(match.provider) || agent.tags.some((tag) => match.tags.includes(tag)))
+          ? 1
+          : 0;
+
+        const score =
+          (prefersQuality ? match.quality_index * 2 : match.quality_index) -
+          (prefersSpeed ? match.latency_index : 0) -
+          Math.round(match.cost_index / 2) +
+          fleetBoost;
+
+        return { match, score };
+      })
+      .sort((a, b) => b.score - a.score);
+
+    return scored[0]?.match ?? null;
   }
 };

@@ -1,10 +1,11 @@
 import { ntntn, NormalizedIntent } from './ntntn';
 import { mim, MIMContextPack } from './mim';
 import { pickerAng } from './picker_ang';
-import { boomerAngs, BoomerAngRole } from '../execution_branches/boomer_angs';
+import { boomerAngs, BoomerAngResult } from '../execution_branches/boomer_angs';
 import { buildSmith } from './buildsmith';
 import { reviewHone } from './review_hone';
 import { packaging } from './packaging';
+import { agentFleet, AgentWorkloadStep } from './agent_fleet';
 
 export interface ActionBoardState {
   status: 'planning' | 'running' | 'review' | 'blocked' | 'approved' | 'packaged' | 'delivered';
@@ -12,7 +13,7 @@ export interface ActionBoardState {
   total_steps: number;
   checkpoints: string[];
   normalized_intent?: NormalizedIntent;
-  results: any[];
+  results: BoomerAngResult[];
 }
 
 export const acheevy = {
@@ -28,32 +29,15 @@ export const acheevy = {
     console.log('ACHEEVY: Governed Context Retrieved with', context.policies.length, 'policies.');
 
     // 3. Sequence Work Branches (Route via Picker_Ang)
-    const executionPlan = [];
-    
-    // Add Research step if needed
-    if (normalized.objective.toLowerCase().includes('research') || normalized.objective.toLowerCase().includes('analyze')) {
-      const researchCap = await pickerAng.route('research', normalized.constraints);
-      if (researchCap) {
-        executionPlan.push({
-          step: executionPlan.length + 1,
-          role: 'researcher' as BoomerAngRole,
-          capability: researchCap.id,
-          directive: normalized.objective
-        });
-      }
-    }
+    const plannedSteps = agentFleet.planWorkload(normalized);
+    const executionPlan: AgentWorkloadStep[] = [];
 
-    // Add Coding step if needed
-    if (normalized.objective.toLowerCase().includes('code') || normalized.objective.toLowerCase().includes('build')) {
-      const codeCap = await pickerAng.route('coding', normalized.constraints);
-      if (codeCap) {
-        executionPlan.push({
-          step: executionPlan.length + 1,
-          role: 'coder' as BoomerAngRole,
-          capability: codeCap.id,
-          directive: `Implement the following based on the objective: ${normalized.objective}`
-        });
-      }
+    for (const plannedStep of plannedSteps) {
+      const capability = await pickerAng.route(plannedStep.capability, normalized.constraints);
+      executionPlan.push({
+        ...plannedStep,
+        capability: capability?.id ?? plannedStep.capability,
+      });
     }
 
     // Update Board State
@@ -73,9 +57,9 @@ export const acheevy = {
     };
   },
 
-  execute: async (plan: any[], state: ActionBoardState, context: MIMContextPack) => {
+  execute: async (plan: AgentWorkloadStep[], state: ActionBoardState, context: MIMContextPack) => {
     console.log('ACHEEVY: Executing Work Plan...');
-    let currentState: ActionBoardState = { ...state, status: 'running' };
+    const currentState: ActionBoardState = { ...state, status: 'running' };
 
     for (const step of plan) {
       currentState.current_step = step.step;
@@ -95,7 +79,13 @@ export const acheevy = {
         id: `step-${step.step}`,
         role: step.role,
         directive: step.directive,
-        context: { ...context, previous_results: currentState.results }
+        context: {
+          ...context,
+          previous_results: currentState.results,
+          assigned_agent: step.agentId,
+          expected_output: step.expectedOutput,
+          execution_reason: step.reason,
+        }
       });
 
       if (taskResult.status === 'failed') {
@@ -105,8 +95,15 @@ export const acheevy = {
         return { success: false, state: currentState };
       }
 
+      if (!taskResult.result) {
+        currentState.status = 'blocked';
+        currentState.checkpoints.push(`FAILED Step ${step.step}: worker returned no result.`);
+        await acheevy.updateBoard(currentState);
+        return { success: false, state: currentState };
+      }
+
       currentState.results.push(taskResult.result);
-      currentState.checkpoints.push(`COMPLETED Step ${step.step}: ${step.role} finished.`);
+      currentState.checkpoints.push(`COMPLETED Step ${step.step}: ${taskResult.result.name} finished.`);
     }
 
     // 3. Assemble and Review
@@ -122,6 +119,10 @@ export const acheevy = {
       await acheevy.updateBoard(currentState);
       return { success: false, state: currentState };
     }
+
+    currentState.status = 'approved';
+    currentState.checkpoints.push(`REVIEW PASSED: score ${review.score}`);
+    await acheevy.updateBoard(currentState);
 
     // 4. Package and Deliver
     currentState.status = 'packaged';

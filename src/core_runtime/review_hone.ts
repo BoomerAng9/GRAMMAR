@@ -4,7 +4,7 @@
  */
 
 export interface ReviewResult {
-  passed: boolean;
+  approved: boolean;
   score: number; // 0-100
   feedback: string[];
   corrections_needed: boolean;
@@ -15,7 +15,7 @@ export const reviewHone = {
     console.log('Review/Hone: Validating deliverable...');
     // In a real scenario, this would use a critic model
     return {
-      passed: true,
+      approved: true,
       score: 95,
       feedback: ['Quality checks passed'],
       corrections_needed: false

@@ -1,18 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { authService, MIMPolicy } from '@/lib/auth-paywall';
+import { paywallService, MIMPolicy } from '@/lib/auth-paywall';
 import { 
   Shield, 
   Settings, 
   Activity, 
   Plus, 
   AlertCircle, 
-  CheckCircle2, 
   Power,
-  ChevronRight,
-  PlusCircle,
   Gavel
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -26,38 +23,46 @@ const POLICY_TYPES = [
   { id: 'technical', label: 'Technical', icon: Settings, color: 'blue' },
   { id: 'operational', label: 'Operational', icon: Activity, color: 'emerald' },
   { id: 'security', label: 'Security', icon: Shield, color: 'purple' },
-];
+ ] as const;
+
+type PolicyType = (typeof POLICY_TYPES)[number]['id'];
+
+interface NewPolicyState {
+  name: string;
+  description: string;
+  type: PolicyType;
+}
 
 export default function PoliciesPage() {
-  const { user, organization } = useAuth();
+  const { organization } = useAuth();
   const [policies, setPolicies] = useState<MIMPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [newPolicy, setNewPolicy] = useState({
+  const [newPolicy, setNewPolicy] = useState<NewPolicyState>({
     name: '',
     description: '',
-    type: 'technical' as const,
+    type: 'technical',
   });
+
+  const loadPolicies = useCallback(async () => {
+    if (!organization?.id) return;
+    setLoading(true);
+    const { data } = await paywallService.getPolicies(organization.id);
+    if (data) setPolicies(data);
+    setLoading(false);
+  }, [organization?.id]);
 
   useEffect(() => {
     if (organization?.id) {
-      loadPolicies();
+      void loadPolicies();
     }
-  }, [organization?.id]);
-
-  const loadPolicies = async () => {
-    if (!organization?.id) return;
-    setLoading(true);
-    const { data, error } = await authService.getPolicies(organization.id);
-    if (data) setPolicies(data);
-    setLoading(false);
-  };
+  }, [organization?.id, loadPolicies]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!organization?.id) return;
 
-    const { data, error } = await authService.createPolicy({
+    const { data } = await paywallService.createPolicy({
       organization_id: organization.id,
       name: newPolicy.name,
       description: newPolicy.description,
@@ -74,7 +79,7 @@ export default function PoliciesPage() {
   };
 
   const togglePolicy = async (policy: MIMPolicy) => {
-    const { data, error } = await authService.updatePolicy(policy.id, {
+    const { data } = await paywallService.updatePolicy(policy.id, {
       is_active: !policy.is_active,
     });
 
@@ -162,7 +167,7 @@ export default function PoliciesPage() {
             <AlertCircle className="w-12 h-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-medium text-white">No policies defined</h3>
             <p className="text-muted-foreground max-w-sm mt-1">
-              Start by establishing your first policy. Policies are the "goverance laws" that Boomer_Angs must follow.
+              Start by establishing your first policy. Policies are the &quot;goverance laws&quot; that Boomer_Angs must follow.
             </p>
             <button
               onClick={() => setIsCreating(true)}
@@ -191,9 +196,10 @@ export default function PoliciesPage() {
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-muted-foreground ml-1">Domain</label>
                       <select
+                        title="Policy domain"
                         className="w-full px-4 py-2 rounded-lg bg-black/40 border border-white/10 focus:border-primary/50 text-white outline-none"
                         value={newPolicy.type}
-                        onChange={e => setNewPolicy({...newPolicy, type: e.target.value as any})}
+                        onChange={e => setNewPolicy({...newPolicy, type: e.target.value as PolicyType})}
                       >
                         {POLICY_TYPES.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                       </select>

@@ -1,10 +1,10 @@
 /* eslint-disable @next/next/no-img-element */
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Settings,
@@ -307,7 +307,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             
             <div className="h-4 w-px bg-slate-200" />
             
-            <button className="relative text-slate-400 hover:text-slate-600">
+            <button type="button" title="Open notifications" className="relative text-slate-400 hover:text-slate-600">
               <Bell className="w-5 h-5" />
               <div className="absolute top-0 right-0 w-2 h-2 rounded-full bg-red-500 border-2 border-white" />
             </button>
@@ -335,6 +335,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
                 <button 
                   onClick={() => setIsQuickPanelOpen(false)}
+                  type="button"
+                  title="Close quick panel"
                   className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition-colors"
                 >
                   <ChevronRight className="w-5 h-5 rotate-90" />
@@ -382,6 +384,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {/* Floating Bubble */}
           <button 
             onClick={() => setIsQuickPanelOpen(!isQuickPanelOpen)}
+            type="button"
+            title="Toggle Chat with ACHEEVY quick panel"
             className={cn(
               "w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl active:scale-[0.9] hover:scale-110 relative group border-0 focus:outline-none",
               isQuickPanelOpen ? "bg-slate-900" : "bg-[#00A3FF] shadow-[#00A3FF44]"
