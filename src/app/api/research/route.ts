@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { tliService } from '@/lib/research/tli-service';
+import { applyRateLimit } from '@/lib/rate-limit';
+import { requireAuthenticatedRequest } from '@/lib/server-auth';
 
 /**
  * POST /api/research
@@ -10,6 +12,20 @@ import { tliService } from '@/lib/research/tli-service';
  */
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireAuthenticatedRequest(request);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const rateLimitResponse = applyRateLimit(request, 'research', {
+      maxRequests: 20,
+      windowMs: 5 * 60 * 1000,
+      subject: authResult.context.user.id,
+    });
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const body = await request.json();
     const { action } = body;
 

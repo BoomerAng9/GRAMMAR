@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@insforge/sdk';
 import { tliService } from '@/lib/research/tli-service';
 import type { ChatAttachment } from '@/lib/research/source-records';
 import { createOpenRouterChatCompletion, getOpenRouterModel } from '@/lib/ai/openrouter';
+import {
+  type AuthenticatedRequestContext,
+  createServerInsforgeClient,
+  getRequestAuthToken,
+  requireAuthenticatedRequest,
+} from '@/lib/server-auth';
+import { applyRateLimit } from '@/lib/rate-limit';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -19,20 +25,45 @@ interface GroundingResult {
   }>;
 }
 
-function getServerClient() {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
-
-  if (!baseUrl || !anonKey) {
-    throw new Error('InsForge server config is missing. Set NEXT_PUBLIC_INSFORGE_URL and NEXT_PUBLIC_INSFORGE_ANON_KEY.');
-  }
-
-  return createClient({ baseUrl, anonKey });
-}
-
 function getLastUserMessage(messages: ChatMessage[]) {
   const reversed = [...messages].reverse();
   return reversed.find((message) => message.role === 'user')?.content || '';
+}
+
+function normalizeMessages(payload: unknown) {
+  if (!Array.isArray(payload)) {
+    return null;
+  }
+
+  const messages = payload.filter((item): item is ChatMessage => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    const candidate = item as Record<string, unknown>;
+    return (
+      (candidate.role === 'user' || candidate.role === 'assistant' || candidate.role === 'system')
+      && typeof candidate.content === 'string'
+      && candidate.content.trim().length > 0
+    );
+  });
+
+  return messages.length > 0 ? messages : null;
+}
+
+function normalizeAttachments(payload: unknown) {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload.filter((item): item is ChatAttachment => {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+
+    const candidate = item as Record<string, unknown>;
+    return typeof candidate.id === 'string' && typeof candidate.title === 'string' && typeof candidate.kind === 'string';
+  }).slice(0, 10);
 }
 
 async function buildGrounding(attachments: ChatAttachment[], userPrompt: string): Promise<GroundingResult> {
@@ -94,11 +125,32 @@ async function buildGrounding(attachments: ChatAttachment[], userPrompt: string)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const messages = Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : [];
-    const attachments = Array.isArray(body.attachments) ? (body.attachments as ChatAttachment[]) : [];
+    const messages = normalizeMessages(body.messages);
+    const attachments = normalizeAttachments(body.attachments);
     const inputMode = body.inputMode === 'voice' ? 'voice' : 'text';
+    const authToken = getRequestAuthToken(request);
+    const requiresWorkspaceAccess = attachments.some((attachment) => attachment.kind === 'notebook-source');
+    let authenticatedContext: AuthenticatedRequestContext | null = null;
 
-    if (!messages.length) {
+    if (requiresWorkspaceAccess || authToken) {
+      const authResult = await requireAuthenticatedRequest(request);
+      if (!authResult.ok) {
+        return authResult.response;
+      }
+
+      authenticatedContext = authResult.context;
+    }
+
+    const rateLimitResponse = applyRateLimit(request, 'chat', {
+      maxRequests: authenticatedContext ? 30 : 10,
+      windowMs: 5 * 60 * 1000,
+      subject: authenticatedContext?.user.id || authToken || undefined,
+    });
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
+    if (!messages) {
       return NextResponse.json({ error: 'messages is required' }, { status: 400 });
     }
 
@@ -122,7 +174,7 @@ export async function POST(request: NextRequest) {
         messages: finalMessages,
         model: requestedModel,
         inputMode,
-        userId: typeof body.userId === 'string' ? body.userId : undefined,
+        userId: authenticatedContext?.user.id,
       });
 
       return NextResponse.json({
@@ -134,7 +186,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const insforge = getServerClient();
+    const insforge = createServerInsforgeClient(authenticatedContext?.token);
     const { data, error } = await insforge.ai.chat.completions.create({
       model: requestedModel,
       messages: finalMessages,

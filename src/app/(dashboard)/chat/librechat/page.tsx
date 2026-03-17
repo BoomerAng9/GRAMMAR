@@ -142,7 +142,7 @@ export default function ChatWithAcheevyPage() {
   const [selectedVoiceVendor, setSelectedVoiceVendor] = useState<VoiceVendorId>('elevenlabs');
   const [selectedVoiceId, setSelectedVoiceId] = useState('');
   const [selectedVoiceModelId, setSelectedVoiceModelId] = useState('');
-  const [isVoiceReplyEnabled, setIsVoiceReplyEnabled] = useState(true);
+  const [isVoiceReplyEnabled, setIsVoiceReplyEnabled] = useState(false);
   const [isSynthesizingVoice, setIsSynthesizingVoice] = useState(false);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [availableSources, setAvailableSources] = useState<NotebookSourceRecord[]>([]);
@@ -254,6 +254,12 @@ export default function ChatWithAcheevyPage() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setIsVoiceReplyEnabled(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     async function loadSources() {
@@ -426,6 +432,11 @@ export default function ChatWithAcheevyPage() {
   };
 
   const playVoiceReply = async (text: string, messageId: string) => {
+    if (!user) {
+      toast.error('Sign in to use premium voice replies.');
+      return;
+    }
+
     if (!selectedVendorConfig?.configured) {
       toast.error(selectedVendorConfig?.reason || 'The selected voice vendor is not configured.');
       return;
@@ -779,6 +790,7 @@ export default function ChatWithAcheevyPage() {
             <input
               type="checkbox"
               checked={isVoiceReplyEnabled}
+              disabled={!user}
               onChange={(event) => setIsVoiceReplyEnabled(event.target.checked)}
               className="h-4 w-4 rounded border-slate-300 text-[#00A3FF] focus:ring-[#00A3FF]"
             />
@@ -788,6 +800,11 @@ export default function ChatWithAcheevyPage() {
         {(voiceCatalogError || selectedVendorConfig?.reason) && (
           <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
             {voiceCatalogError || selectedVendorConfig?.reason}
+          </div>
+        )}
+        {!user && (
+          <div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600">
+            Voice replies use premium vendor APIs. Sign in to enable playback and auto-speak.
           </div>
         )}
         {selectedAttachments.length > 0 && (

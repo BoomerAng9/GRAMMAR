@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GRAMMAR
 
-## Getting Started
+GRAMMAR converts plain-language requests into structured technical prompts.
 
-First, run the development server:
+Primary product flow:
+
+1. User lands on `/`
+2. User opens `Chat w/ ACHEEVY`
+3. User types or speaks a request in normal language
+4. ACHEEVY returns a structured prompt block the user can copy into another AI system
+
+## Stack
+
+- Next.js 15 App Router
+- React 19
+- TypeScript
+- Tailwind CSS
+- InsForge for auth and data access
+- OpenRouter for text generation
+- ElevenLabs / NVIDIA PersonaPlex / Grok adapters for voice replies
+- Stripe for subscriptions
+
+## Core Routes
+
+- `/` public landing page
+- `/chat/librechat` main product experience
+- `/pricing` and `/(dashboard)/pricing` billing surfaces
+- `/api/chat` prompt-generation API
+- `/api/voice` voice vendor catalog and synthesis API
+- `/api/research` NotebookLM-backed research API
+- `/api/stripe/checkout` Stripe Checkout Session creation
+- `/api/stripe/webhook` Stripe subscription lifecycle updates
+
+## Environment
+
+Copy `.env.example` to a local env file and fill in the required values.
+
+Minimum required for a working local app:
+
+- `NEXT_PUBLIC_INSFORGE_URL`
+- `NEXT_PUBLIC_INSFORGE_ANON_KEY`
+- `INSFORGE_API_KEY`
+- `OPENROUTER_KEY` or `OPENAI_API_KEY`
+
+Required for billing:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `NEXT_PUBLIC_STRIPE_PRO_PRICE_ID`
+
+Required for voice vendors:
+
+- `ELEVENLABS_API_KEY` for ElevenLabs
+- `GROK_VOICE_*` values for Grok voice
+- `NVIDIA_PERSONAPLEX_*` values for NVIDIA PersonaPlex
+
+Required for NotebookLM grounding:
+
+- `GCP_PROJECT_ID`
+- `NOTEBOOKLM_ACCESS_TOKEN` or `NOTEBOOKLM_API_KEY`
+
+## Local Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Default local app URL:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `http://localhost:3000`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Validation
 
-## Learn More
+```bash
+npm run lint
+npx tsc --noEmit
+npm test
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Apply the SQL files in `sql/` to the target database. The current launch path expects:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `001_user_management.sql`
+- `002_research_lab.sql`
+- `003_data_sources.sql`
+- `multi_tenant_schema.sql`
+- `policies.sql`
 
-## Deploy on Vercel
+## Security Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Do not commit real secrets.
+- `.env.example` is the only env template that should stay in git.
+- Auth cookies are written through `/api/auth/session` as `HttpOnly`.
+- Admin mutation routes, runtime routes, research routes, and voice synthesis are server-auth protected.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Current Launch Standard
+
+Before deploying, verify:
+
+1. Stripe checkout creates a live Checkout Session.
+2. Stripe webhook is configured with the correct signing secret.
+3. Voice vendors are configured in the target environment.
+4. NotebookLM credentials are valid.
+5. `npm run lint`, `npx tsc --noEmit`, `npm test`, and `npm run build` pass in the deployment environment.

@@ -1,8 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Sparkles, Shield, Rocket } from 'lucide-react';
-import { PLAN_CONFIG } from '@/lib/auth-paywall';
+import { toast } from 'sonner';
+import { PLAN_CONFIG } from '@/lib/billing/plans';
 import { useAuth } from '@/hooks/useAuth';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -13,11 +14,33 @@ function cn(...inputs: ClassValue[]) {
 
 export default function PricingPage() {
   const { profile } = useAuth();
+  const [pendingPlan, setPendingPlan] = useState<string | null>(null);
   
   const handleUpgrade = async (plan: string) => {
-    // In production, this would redirect to Stripe Checkout
-    console.log(`Upgrading to ${plan}`);
-    window.location.href = `/api/stripe/checkout?plan=${plan}`;
+    setPendingPlan(plan);
+
+    try {
+      const response = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Unable to start checkout.');
+      }
+
+      if (!payload?.url || typeof payload.url !== 'string') {
+        throw new Error('Stripe did not return a checkout URL.');
+      }
+
+      window.location.href = payload.url;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to start checkout.';
+      toast.error(message);
+      setPendingPlan(null);
+    }
   };
 
   return (
@@ -76,7 +99,7 @@ export default function PricingPage() {
 
               <button
                 onClick={() => !isCurrent && handleUpgrade(key)}
-                disabled={isCurrent || key === 'enterprise'}
+                disabled={isCurrent || key === 'enterprise' || pendingPlan === key}
                 className={cn(
                   "w-full py-4 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] shadow-lg",
                   isCurrent 
@@ -86,7 +109,7 @@ export default function PricingPage() {
                       : "bg-slate-900 text-white hover:bg-slate-800"
                 )}
               >
-                {isCurrent ? 'Current Plan' : plan.cta}
+                {isCurrent ? 'Current Plan' : pendingPlan === key ? 'Redirecting…' : plan.cta}
               </button>
             </div>
           );

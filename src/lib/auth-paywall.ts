@@ -1,4 +1,5 @@
 import { insforge } from './insforge';
+export { PLAN_CONFIG, type PlanFeature } from '@/lib/billing/plans';
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -77,64 +78,36 @@ interface PolicyMutationResult<T> {
   error: unknown;
 }
 
-export interface PlanFeature {
-  name: string;
-  price: string;
-  period: string;
-  features: string[];
-  cta: string;
-  highlight?: boolean;
-  priceId: string | null;
+function getAccessTokenFromSession(
+  session: { accessToken?: string; access_token?: string } | null | undefined,
+) {
+  if (!session) {
+    return null;
+  }
+
+  return session.accessToken || session.access_token || null;
 }
 
-export const PLAN_CONFIG: Record<string, PlanFeature> = {
-  free: {
-    name: 'Starter',
-    price: '$0',
-    period: 'forever',
-    features: [
-      '3 TLI Data Sources',
-      '10 Research Queries / day',
-      '1 Agent Instance',
-      '50 MB Storage',
-    ],
-    cta: 'Current Plan',
-    priceId: null,
-  },
-  pro: {
-    name: 'Pro',
-    price: '$29',
-    period: '/month',
-    features: [
-      '50 TLI Data Sources',
-      '500 Research Queries / day',
-      '10 Agent Instances',
-      '5 GB Storage',
-      'Deep Research Mode',
-      'Custom Model Selection',
-    ],
-    cta: 'Upgrade to Pro',
-    highlight: true,
-    priceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID || 'price_pro_default',
-  },
-  enterprise: {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    features: [
-      'Unlimited Sources',
-      'Unlimited Queries',
-      'Unlimited Agents',
-      'Unlimited Storage',
-      'Deep Research Mode',
-      'Custom Models',
-      'Priority Support',
-      'SLA Guarantee',
-    ],
-    cta: 'Contact Sales',
-    priceId: process.env.NEXT_PUBLIC_STRIPE_ENTERPRISE_PRICE_ID || 'price_enterprise_default',
-  },
-};
+async function syncServerSessionCookie(accessToken: string | null) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (!accessToken) {
+    return;
+  }
+
+  const response = await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ accessToken }),
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload?.error || 'Failed to persist auth session.');
+  }
+}
 
 // ─── Auth Service ─────────────────────────────────────────
 
@@ -177,6 +150,9 @@ export const authService = {
       }]);
     }
 
+    const { data: currentSession } = await insforge.auth.getCurrentSession();
+    await syncServerSessionCookie(getAccessTokenFromSession(currentSession?.session));
+
     return data;
   },
 
@@ -187,6 +163,9 @@ export const authService = {
     if (!insforge) throw new Error('InsForge client not initialized');
     const { data, error } = await insforge.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    const accessToken = getAccessTokenFromSession(data as { accessToken?: string; access_token?: string } | null)
+      || getAccessTokenFromSession((await insforge.auth.getCurrentSession()).data?.session);
+    await syncServerSessionCookie(accessToken);
     return data;
   },
 
@@ -210,6 +189,9 @@ export const authService = {
     if (!insforge) throw new Error('InsForge client not initialized');
     const { error } = await insforge.auth.signOut();
     if (error) throw error;
+    if (typeof window !== 'undefined') {
+      await fetch('/api/auth/session', { method: 'DELETE' });
+    }
   },
 
   /**

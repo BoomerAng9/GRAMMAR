@@ -8,27 +8,36 @@ export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const handleSession = (session: { access_token: string } | null) => {
-      if (session) {
-        // Set cookie manually for middleware to see it immediately
-        const expires = new Date();
-        expires.setTime(expires.getTime() + (7 * 24 * 60 * 60 * 1000)); // 7 days
-        document.cookie = `insforge-auth-token=${session.access_token}; path=/; expires=${expires.toUTCString()}; SameSite=Lax; Secure`;
-        router.replace('/board');
+    const handleSession = async (session: { accessToken?: string; access_token?: string } | null) => {
+      const accessToken = session?.accessToken || session?.access_token;
+      if (!accessToken) {
+        return;
       }
+
+      const response = await fetch('/api/auth/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to persist authenticated session.');
+      }
+
+      router.replace('/chat/librechat');
     };
 
     const checkSession = async () => {
       try {
         if (!insforge) {
-          router.replace('/board');
+          router.replace('/chat/librechat');
           return;
         }
 
         const { data } = await insforge.auth.getCurrentSession();
         
         if (data?.session) {
-          handleSession(data.session as unknown as { access_token: string });
+          await handleSession(data.session as { accessToken?: string; access_token?: string });
         } else {
           // Check if onAuthStateChange exists on the auth object
           const authObj = insforge.auth as unknown as { 
@@ -38,13 +47,13 @@ export default function AuthCallbackPage() {
           if (authObj.onAuthStateChange) {
             authObj.onAuthStateChange((event, session) => {
               if (event === 'SIGNED_IN' || session) {
-                handleSession(session);
+                void handleSession(session);
               }
             });
           }
 
           setTimeout(() => {
-            router.replace('/board');
+            router.replace('/chat/librechat');
           }, 3000);
         }
       } catch (err) {

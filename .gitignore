@@ -39,6 +39,7 @@ yarn-error.log*
 .env
 .env.*
 .env*.local
+!.env.example
 MASTER_SECRETS.md
 ACHEEVY_MASTER_CREDENTIALS.md
 

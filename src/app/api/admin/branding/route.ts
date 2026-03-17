@@ -1,5 +1,11 @@
-import { NextResponse } from 'next/server';
-import { createClient } from '@insforge/sdk';
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  createAdminInsforgeClient,
+  createServerInsforgeClient,
+  requireAuthenticatedRequest,
+  requireRole,
+} from '@/lib/server-auth';
+import { applyRateLimit } from '@/lib/rate-limit';
 
 export const revalidate = 300;
 
@@ -13,14 +19,7 @@ const defaultBranding = {
 };
 
 function getServerClient() {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
-
-  if (!baseUrl || !anonKey) {
-    throw new Error('InsForge env vars are missing.');
-  }
-
-  return createClient({ baseUrl, anonKey });
+  return createServerInsforgeClient();
 }
 
 export async function GET() {
@@ -57,10 +56,29 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
+    const authResult = await requireAuthenticatedRequest(request);
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const roleResponse = requireRole(authResult.context, ['admin', 'operator']);
+    if (roleResponse) {
+      return roleResponse;
+    }
+
+    const rateLimitResponse = applyRateLimit(request, 'branding-update', {
+      maxRequests: 10,
+      windowMs: 10 * 60 * 1000,
+      subject: authResult.context.user.id,
+    });
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
+
     const payload = await request.json();
-    const insforge = getServerClient();
+    const insforge = createAdminInsforgeClient();
 
     const { error } = await insforge.database
       .from('system_config')

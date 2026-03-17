@@ -1,37 +1,110 @@
-import { NextResponse } from 'next/server';
-import { PLAN_CONFIG } from '@/lib/auth-paywall';
+import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
+import { getStripePriceId } from '@/lib/billing/plans';
+import { applyRateLimit } from '@/lib/rate-limit';
+import { createAdminInsforgeClient, requireAuthenticatedRequest } from '@/lib/server-auth';
 
-// This is a mockup/implementation of the Stripe checkout route
-// In a real app, you'd use the stripe SDK here
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const plan = searchParams.get('plan') || 'free';
-  
+function getStripeClient() {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('STRIPE_SECRET_KEY is not configured.');
+  }
+
+  return new Stripe(secretKey, { apiVersion: '2026-02-25.clover' });
+}
+
+export async function POST(request: NextRequest) {
   try {
-    // 1. Get current user session (simulated via headers or SDK)
-    // For now we just check if it's a valid plan
-    if (!PLAN_CONFIG[plan as keyof typeof PLAN_CONFIG]) {
-      return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+    const authResult = await requireAuthenticatedRequest(request);
+    if (!authResult.ok) {
+      return authResult.response;
     }
 
-    console.log(`[Stripe] Creating checkout session for plan: ${plan}`);
+    const rateLimitResponse = applyRateLimit(request, 'stripe-checkout', {
+      maxRequests: 5,
+      windowMs: 60 * 1000,
+      subject: authResult.context.user.id,
+    });
+    if (rateLimitResponse) {
+      return rateLimitResponse;
+    }
 
-    // 2. In a real implementation:
-    // const session = await stripe.checkout.sessions.create({...});
-    // return NextResponse.redirect(session.url);
+    const body = await request.json().catch(() => ({}));
+    const requestedPlan = typeof body.plan === 'string' ? body.plan.trim() : '';
 
-    // 3. For the current environment, we'll simulate a successful redirect
-    // or return a "Success" page URL if we're in mock mode.
-    // Actually, let's just redirect to a success page for now to show the flow.
-    const baseUrl = new URL(request.url).origin;
-    
-    // Simulate a short delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    if (requestedPlan !== 'pro') {
+      return NextResponse.json({ error: 'Only the Pro plan is available through self-serve checkout.' }, { status: 400 });
+    }
 
-    // Redirect to a success page that will update the user's tier in the DB
-    return NextResponse.redirect(`${baseUrl}/pricing?success=true&plan=${plan}`);
-  } catch (error) {
-    console.error('[Stripe] Error:', error);
-    return NextResponse.json({ error: 'Checkout failed' }, { status: 500 });
+    const priceId = getStripePriceId(requestedPlan);
+    if (!priceId) {
+      return NextResponse.json({ error: 'Stripe price ID is not configured for this plan.' }, { status: 500 });
+    }
+
+    const stripe = getStripeClient();
+    const adminClient = createAdminInsforgeClient();
+
+    let customerId = authResult.context.profile?.stripe_customer_id || null;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: authResult.context.user.email || undefined,
+        name: authResult.context.profile?.display_name || undefined,
+        metadata: {
+          user_id: authResult.context.user.id,
+        },
+      });
+
+      customerId = customer.id;
+
+      await adminClient.database
+        .from('profiles')
+        .update({ stripe_customer_id: customerId })
+        .eq('user_id', authResult.context.user.id);
+    }
+
+    const origin = process.env.DOMAIN_CLIENT || new URL(request.url).origin;
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      customer: customerId || undefined,
+      customer_email: customerId ? undefined : authResult.context.user.email || undefined,
+      client_reference_id: authResult.context.user.id,
+      allow_promotion_codes: true,
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        user_id: authResult.context.user.id,
+        plan: requestedPlan,
+        price_id: priceId,
+      },
+      subscription_data: {
+        metadata: {
+          user_id: authResult.context.user.id,
+          plan: requestedPlan,
+          price_id: priceId,
+        },
+      },
+      success_url: `${origin}/pricing?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/pricing?canceled=true`,
+    });
+
+    if (!session.url) {
+      return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
+    }
+
+    return NextResponse.json({
+      url: session.url,
+      sessionId: session.id,
+    });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Checkout failed';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+export async function GET() {
+  return NextResponse.json({ error: 'Use POST to create a checkout session.' }, { status: 405 });
 }
