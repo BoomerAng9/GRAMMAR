@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@insforge/sdk';
 import { tliService } from '@/lib/research/tli-service';
 import type { ChatAttachment } from '@/lib/research/source-records';
+import { createOpenRouterChatCompletion, getOpenRouterModel } from '@/lib/ai/openrouter';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const messages = Array.isArray(body.messages) ? (body.messages as ChatMessage[]) : [];
     const attachments = Array.isArray(body.attachments) ? (body.attachments as ChatAttachment[]) : [];
+    const inputMode = body.inputMode === 'voice' ? 'voice' : 'text';
 
     if (!messages.length) {
       return NextResponse.json({ error: 'messages is required' }, { status: 400 });
@@ -113,9 +115,28 @@ export async function POST(request: NextRequest) {
         ]
       : messages;
 
+    const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model : getOpenRouterModel(inputMode);
+
+    if (process.env.OPENROUTER_KEY || process.env.OPENAI_API_KEY) {
+      const completion = await createOpenRouterChatCompletion({
+        messages: finalMessages,
+        model: requestedModel,
+        inputMode,
+        userId: typeof body.userId === 'string' ? body.userId : undefined,
+      });
+
+      return NextResponse.json({
+        reply: completion.content,
+        raw: completion.raw,
+        citations: grounding.citations,
+        model: completion.model,
+        provider: 'OpenRouter',
+      });
+    }
+
     const insforge = getServerClient();
     const { data, error } = await insforge.ai.chat.completions.create({
-      model: body.model || 'openai/gpt-4o-mini',
+      model: requestedModel,
       messages: finalMessages,
     });
 
@@ -128,7 +149,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AI returned an empty payload.' }, { status: 502 });
     }
 
-    return NextResponse.json({ reply: content, raw: data, citations: grounding.citations });
+    return NextResponse.json({ reply: content, raw: data, citations: grounding.citations, model: requestedModel, provider: 'InsForge' });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal chat API error';
     return NextResponse.json({ error: message }, { status: 500 });

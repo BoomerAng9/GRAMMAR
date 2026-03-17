@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, Copy, Check, Paperclip, FileText, Link2, X, AtSign } from 'lucide-react';
+import { Send, Sparkles, Loader2, Copy, Check, Paperclip, FileText, Link2, X, AtSign, Mic, Square, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { insforge } from '@/lib/insforge';
 import { useAuth } from '@/hooks/useAuth';
 import { type ChatAttachment, type NotebookSourceRecord, mapPersistedSourceRecord, type PersistedSourceRecord } from '@/lib/research/source-records';
 import { sourceIcon } from '@/lib/research/source-icons';
+import type { VoiceVendorConfig, VoiceOption, VoiceVendorId } from '@/lib/voice/vendors';
 
 interface ChatMessage {
   id: string;
@@ -20,6 +21,44 @@ interface ChatMessage {
     excerpt: string;
     pageNumber?: number;
   }>;
+}
+
+function decodeBase64ToBlob(base64: string, mimeType: string) {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return new Blob([bytes], { type: mimeType });
+}
+
+const TEXT_MODEL = process.env.NEXT_PUBLIC_OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini';
+const VOICE_MODEL = process.env.NEXT_PUBLIC_OPENROUTER_VOICE_MODEL || TEXT_MODEL;
+
+interface BrowserSpeechRecognition extends EventTarget {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onresult: ((event: BrowserSpeechRecognitionEvent) => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+interface BrowserSpeechRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: new () => BrowserSpeechRecognition;
+    webkitSpeechRecognition?: new () => BrowserSpeechRecognition;
+  }
 }
 
 const SYSTEM_PROMPT = `You are ACHEEVY, the assistant inside GRAMMAR. Your single purpose is to convert plain-language descriptions into structured technical prompts that the user can copy and paste into any AI tool (ChatGPT, Claude, Gemini, etc.).
@@ -91,15 +130,129 @@ export default function ChatWithAcheevyPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState('');
+  const [voiceError, setVoiceError] = useState('');
+  const [activeProvider, setActiveProvider] = useState('OpenRouter');
+  const [activeModel, setActiveModel] = useState(TEXT_MODEL);
   const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
+  const [isVoiceSupported, setIsVoiceSupported] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [voiceVendors, setVoiceVendors] = useState<VoiceVendorConfig[]>([]);
+  const [voiceCatalogError, setVoiceCatalogError] = useState('');
+  const [selectedVoiceVendor, setSelectedVoiceVendor] = useState<VoiceVendorId>('elevenlabs');
+  const [selectedVoiceId, setSelectedVoiceId] = useState('');
+  const [selectedVoiceModelId, setSelectedVoiceModelId] = useState('');
+  const [isVoiceReplyEnabled, setIsVoiceReplyEnabled] = useState(true);
+  const [isSynthesizingVoice, setIsSynthesizingVoice] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const [availableSources, setAvailableSources] = useState<NotebookSourceRecord[]>([]);
   const [selectedAttachments, setSelectedAttachments] = useState<ChatAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<BrowserSpeechRecognition | null>(null);
+  const voiceSeedRef = useRef('');
+  const lastInputModeRef = useRef<'text' | 'voice'>('text');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const SpeechRecognitionConstructor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionConstructor) {
+      setIsVoiceSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognitionConstructor();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setVoiceError('');
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      setInterimTranscript('');
+      voiceSeedRef.current = '';
+    };
+
+    recognition.onerror = (event) => {
+      setVoiceError(event.error === 'not-allowed' ? 'Microphone permission was denied.' : 'Voice capture failed. Try again.');
+      setIsListening(false);
+      setInterimTranscript('');
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from(event.results)
+        .map((result) => result[0]?.transcript || '')
+        .join(' ')
+        .trim();
+
+      const seed = voiceSeedRef.current ? `${voiceSeedRef.current} ` : '';
+      const nextValue = `${seed}${transcript}`.trim();
+      setInterimTranscript(transcript);
+      setQuery(nextValue);
+    };
+
+    recognitionRef.current = recognition;
+    setIsVoiceSupported(true);
+
+    return () => {
+      recognition.abort();
+      recognitionRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    async function loadVoiceVendors() {
+      try {
+        setVoiceCatalogError('');
+        const response = await fetch('/api/voice', { cache: 'no-store' });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to load voice vendors.');
+        }
+
+        const vendors = Array.isArray(payload?.vendors) ? payload.vendors as VoiceVendorConfig[] : [];
+        setVoiceVendors(vendors);
+
+        const preferredVendor = vendors.find((vendor) => vendor.id === 'elevenlabs' && vendor.configured)
+          || vendors.find((vendor) => vendor.configured)
+          || vendors[0];
+
+        if (preferredVendor) {
+          setSelectedVoiceVendor(preferredVendor.id);
+          setSelectedVoiceId(preferredVendor.defaultVoiceId || preferredVendor.voices[0]?.id || '');
+          setSelectedVoiceModelId(preferredVendor.defaultModelId || preferredVendor.voices[0]?.defaultModelId || '');
+        }
+      } catch (loadError) {
+        const message = loadError instanceof Error ? loadError.message : 'Failed to load voice vendors.';
+        setVoiceCatalogError(message);
+      }
+    }
+
+    void loadVoiceVendors();
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause();
+      if (audioUrlRef.current) {
+        URL.revokeObjectURL(audioUrlRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -131,6 +284,48 @@ export default function ChatWithAcheevyPage() {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  useEffect(() => {
+    const selectedVendor = voiceVendors.find((vendor) => vendor.id === selectedVoiceVendor);
+    if (!selectedVendor) {
+      return;
+    }
+
+    const nextVoiceId = selectedVendor.voices.find((voice) => voice.id === selectedVoiceId)?.id
+      || selectedVendor.defaultVoiceId
+      || selectedVendor.voices[0]?.id
+      || '';
+    const selectedVoice = selectedVendor.voices.find((voice) => voice.id === nextVoiceId);
+    const nextModelIds = selectedVoice?.modelIds?.length
+      ? selectedVoice.modelIds
+      : selectedVendor.defaultModelId
+        ? [selectedVendor.defaultModelId]
+        : [];
+    const nextModelId = nextModelIds.includes(selectedVoiceModelId)
+      ? selectedVoiceModelId
+      : selectedVoice?.defaultModelId
+        || selectedVendor.defaultModelId
+        || nextModelIds[0]
+        || '';
+
+    if (nextVoiceId !== selectedVoiceId) {
+      setSelectedVoiceId(nextVoiceId);
+    }
+
+    if (nextModelId !== selectedVoiceModelId) {
+      setSelectedVoiceModelId(nextModelId);
+    }
+  }, [selectedVoiceId, selectedVoiceModelId, selectedVoiceVendor, voiceVendors]);
+
+  const selectedVendorConfig = voiceVendors.find((vendor) => vendor.id === selectedVoiceVendor);
+  const selectedVoiceConfig = selectedVendorConfig?.voices.find((voice) => voice.id === selectedVoiceId);
+  const availableModelIds = selectedVoiceConfig?.modelIds?.length
+    ? selectedVoiceConfig.modelIds
+    : selectedVendorConfig?.defaultModelId
+      ? [selectedVendorConfig.defaultModelId]
+      : selectedVoiceModelId
+        ? [selectedVoiceModelId]
+        : [];
 
   const toggleSourceAttachment = (source: NotebookSourceRecord) => {
     setSelectedAttachments((current) => {
@@ -187,9 +382,111 @@ export default function ChatWithAcheevyPage() {
     toast.success(`${files.length} attachment${files.length > 1 ? 's' : ''} added.`);
   };
 
+  const startListening = () => {
+    if (!recognitionRef.current || isTyping) {
+      return;
+    }
+
+    try {
+      lastInputModeRef.current = 'voice';
+      voiceSeedRef.current = query.trim();
+      setVoiceError('');
+      recognitionRef.current.start();
+    } catch {
+      setVoiceError('Voice capture is already running.');
+    }
+  };
+
+  const stopListening = () => {
+    recognitionRef.current?.stop();
+  };
+
+  const toggleListening = () => {
+    if (!isVoiceSupported) {
+      toast.error('Voice input is not supported in this browser.');
+      return;
+    }
+
+    if (isListening) {
+      stopListening();
+      return;
+    }
+
+    startListening();
+  };
+
+  const stopAudioPlayback = () => {
+    audioRef.current?.pause();
+    audioRef.current = null;
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
+    setSpeakingMessageId(null);
+  };
+
+  const playVoiceReply = async (text: string, messageId: string) => {
+    if (!selectedVendorConfig?.configured) {
+      toast.error(selectedVendorConfig?.reason || 'The selected voice vendor is not configured.');
+      return;
+    }
+
+    stopAudioPlayback();
+    setIsSynthesizingVoice(true);
+    setSpeakingMessageId(messageId);
+
+    try {
+      const response = await fetch('/api/voice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          vendor: selectedVoiceVendor,
+          voiceId: selectedVoiceId || undefined,
+          modelId: selectedVoiceModelId || undefined,
+          text,
+        }),
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Voice synthesis failed.');
+      }
+
+      const blob = decodeBase64ToBlob(payload.audioBase64, payload.mimeType || 'audio/mpeg');
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+
+      audioRef.current = audio;
+      audioUrlRef.current = audioUrl;
+
+      audio.onended = () => {
+        setSpeakingMessageId(null);
+      };
+
+      audio.onerror = () => {
+        stopAudioPlayback();
+        toast.error('Voice playback failed in this browser.');
+      };
+
+      await audio.play();
+    } catch (playbackError) {
+      stopAudioPlayback();
+      const message = playbackError instanceof Error ? playbackError.message : 'Voice playback failed.';
+      toast.error(message);
+    } finally {
+      setIsSynthesizingVoice(false);
+    }
+  };
+
   const handleSend = async () => {
     const text = query.trim();
     if (!text || isTyping) return;
+
+    const inputMode = isListening || interimTranscript ? 'voice' : lastInputModeRef.current;
+
+    if (isListening) {
+      stopListening();
+    }
 
     setError('');
     const userMsg: ChatMessage = {
@@ -211,7 +508,9 @@ export default function ChatWithAcheevyPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'openai/gpt-4o-mini',
+          model: inputMode === 'voice' ? VOICE_MODEL : TEXT_MODEL,
+          inputMode,
+          userId: user?.id,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             ...updated.map(m => ({
@@ -228,15 +527,23 @@ export default function ChatWithAcheevyPage() {
 
       const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
       if (!reply) throw new Error('Empty response from AI engine');
+      setActiveProvider(typeof payload?.provider === 'string' ? payload.provider : 'OpenRouter');
+      setActiveModel(typeof payload?.model === 'string' ? payload.model : (inputMode === 'voice' ? VOICE_MODEL : TEXT_MODEL));
+      lastInputModeRef.current = 'text';
 
+      const assistantMessageId = (Date.now() + 1).toString();
       setMessages(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
+        id: assistantMessageId,
         role: 'agent',
         content: reply,
         timestamp: new Date().toLocaleTimeString(),
         citations: Array.isArray(payload?.citations) ? payload.citations : [],
       }]);
       setSelectedAttachments([]);
+
+      if (isVoiceReplyEnabled) {
+        void playVoiceReply(reply, assistantMessageId);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong';
       setError(msg);
@@ -265,8 +572,17 @@ export default function ChatWithAcheevyPage() {
           <span className="text-slate-300">|</span>
           <span className="text-slate-500 font-semibold">Chat w/ ACHEEVY</span>
         </div>
+        <div className="ml-auto hidden items-center gap-2 md:flex">
+          <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">{activeProvider}</span>
+          <span className="rounded-full border border-[#00A3FF22] bg-[#00A3FF0A] px-2.5 py-1 text-[10px] font-bold text-[#00A3FF]">
+            {isListening ? `Voice: ${VOICE_MODEL}` : `Text: ${activeModel}`}
+          </span>
+          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${selectedVendorConfig?.configured ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            {selectedVendorConfig ? `${selectedVendorConfig.label}${selectedVoiceModelId ? ` • ${selectedVoiceModelId}` : ''}` : 'Voice vendor'}
+          </span>
+        </div>
         {error && (
-          <span className="ml-auto text-[10px] font-bold text-red-500 uppercase tracking-wider">Connection issue</span>
+          <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">Connection issue</span>
         )}
       </div>
 
@@ -282,8 +598,18 @@ export default function ChatWithAcheevyPage() {
               I&apos;m ACHEEVY. Where do we start?
             </p>
             <p className="text-slate-400 text-xs mt-4 max-w-sm">
-              Describe what you need in plain language and GRAMMAR will convert it into a structured prompt.
+              Speak or type what you need in plain language and GRAMMAR will convert it into a structured prompt.
             </p>
+            {isVoiceSupported && (
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`mt-6 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition-all ${isListening ? 'bg-red-500 text-white shadow-lg shadow-red-500/20' : 'bg-[#0F172A] text-white shadow-lg shadow-slate-900/20 hover:scale-105'}`}
+              >
+                {isListening ? <Square className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                {isListening ? 'Stop listening' : 'Tap to speak'}
+              </button>
+            )}
           </div>
         ) : (
           <div className="p-6 space-y-6">
@@ -320,13 +646,36 @@ export default function ChatWithAcheevyPage() {
                       </div>
                     )}
                     {msg.role === 'agent' ? (
-                      parseMessageContent(msg.content).map((part, i) =>
-                        part.type === 'prompt' ? (
-                          <PromptBlock key={i} content={part.content} />
-                        ) : (
-                          <p key={i} className="whitespace-pre-wrap">{part.content}</p>
-                        )
-                      )
+                      <>
+                        {parseMessageContent(msg.content).map((part, i) =>
+                          part.type === 'prompt' ? (
+                            <PromptBlock key={i} content={part.content} />
+                          ) : (
+                            <p key={i} className="whitespace-pre-wrap">{part.content}</p>
+                          )
+                        )}
+                        <div className="mt-4 flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void playVoiceReply(msg.content, msg.id)}
+                            disabled={!selectedVendorConfig?.configured || isSynthesizingVoice}
+                            className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {speakingMessageId === msg.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />}
+                            {speakingMessageId === msg.id ? 'Playing voice' : `Speak via ${selectedVendorConfig?.label || 'voice'}`}
+                          </button>
+                          {speakingMessageId === msg.id && (
+                            <button
+                              type="button"
+                              onClick={stopAudioPlayback}
+                              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50"
+                            >
+                              <Square className="w-3 h-3" />
+                              Stop
+                            </button>
+                          )}
+                        </div>
+                      </>
                     ) : (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                     )}
@@ -363,6 +712,84 @@ export default function ChatWithAcheevyPage() {
 
       {/* Input area */}
       <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0">
+        {(isListening || voiceError || interimTranscript) && (
+          <div className={`mb-3 flex items-center justify-between rounded-2xl border px-4 py-3 text-xs font-bold ${voiceError ? 'border-red-200 bg-red-50 text-red-600' : 'border-[#00A3FF22] bg-[#00A3FF0A] text-slate-700'}`}>
+            <div className="flex items-center gap-2">
+              {isListening ? <Mic className="w-4 h-4 text-[#00A3FF] animate-pulse" /> : <Sparkles className="w-4 h-4" />}
+              <span>
+                {voiceError || (isListening ? 'Listening now. Speak naturally.' : interimTranscript ? 'Voice transcript captured.' : 'Voice ready.')}
+              </span>
+            </div>
+            {isListening && (
+              <button type="button" onClick={stopListening} className="rounded-lg border border-slate-200 bg-white px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50">
+                Stop
+              </button>
+            )}
+          </div>
+        )}
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            Voice vendor
+            <select
+              value={selectedVoiceVendor}
+              onChange={(event) => setSelectedVoiceVendor(event.target.value as VoiceVendorId)}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case tracking-normal text-slate-700 focus:border-[#00A3FF] focus:outline-none"
+            >
+              {voiceVendors.map((vendor) => (
+                <option key={vendor.id} value={vendor.id} disabled={!vendor.configured}>
+                  {vendor.label}{vendor.configured ? '' : ' (unconfigured)'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            Voice
+            <select
+              value={selectedVoiceId}
+              onChange={(event) => {
+                const nextVoiceId = event.target.value;
+                setSelectedVoiceId(nextVoiceId);
+                const nextVoice = selectedVendorConfig?.voices.find((voice) => voice.id === nextVoiceId);
+                if (nextVoice?.defaultModelId) {
+                  setSelectedVoiceModelId(nextVoice.defaultModelId);
+                }
+              }}
+              disabled={!selectedVendorConfig?.configured || selectedVendorConfig.voices.length === 0}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case tracking-normal text-slate-700 focus:border-[#00A3FF] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              {(selectedVendorConfig?.voices || []).map((voice: VoiceOption) => (
+                <option key={voice.id} value={voice.id}>{voice.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            Voice model
+            <select
+              value={selectedVoiceModelId}
+              onChange={(event) => setSelectedVoiceModelId(event.target.value)}
+              disabled={!selectedVendorConfig?.configured || availableModelIds.length === 0}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold normal-case tracking-normal text-slate-700 focus:border-[#00A3FF] focus:outline-none disabled:cursor-not-allowed disabled:bg-slate-100"
+            >
+              {availableModelIds.map((modelId) => (
+                <option key={modelId} value={modelId}>{modelId}</option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 self-end rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700">
+            <input
+              type="checkbox"
+              checked={isVoiceReplyEnabled}
+              onChange={(event) => setIsVoiceReplyEnabled(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-[#00A3FF] focus:ring-[#00A3FF]"
+            />
+            Auto speak replies
+          </label>
+        </div>
+        {(voiceCatalogError || selectedVendorConfig?.reason) && (
+          <div className="mb-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-bold text-amber-700">
+            {voiceCatalogError || selectedVendorConfig?.reason}
+          </div>
+        )}
         {selectedAttachments.length > 0 && (
           <div className="mb-3 flex flex-wrap gap-2">
             {selectedAttachments.map((attachment) => (
@@ -401,6 +828,16 @@ export default function ChatWithAcheevyPage() {
             </button>
             <button
               type="button"
+              title={isVoiceSupported ? (isListening ? 'Stop voice input' : 'Start voice input') : 'Voice input is unavailable in this browser'}
+              onClick={toggleListening}
+              disabled={!isVoiceSupported || isTyping}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-[11px] font-bold transition-all ${isListening ? 'border-red-500 bg-red-50 text-red-600' : 'border-slate-200 bg-white text-slate-600 hover:text-slate-900'} disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              {isListening ? <Square className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+              {isListening ? 'Listening' : 'Speak'}
+            </button>
+            <button
+              type="button"
               title="Attach NotebookLM sources"
               onClick={() => setIsAttachmentPickerOpen(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[11px] font-bold text-slate-600 transition-all hover:text-slate-900"
@@ -423,7 +860,7 @@ export default function ChatWithAcheevyPage() {
                   void handleSend();
                 }
               }}
-              placeholder="Type your request..."
+              placeholder={isVoiceSupported ? 'Speak or type your request...' : 'Type your request...'}
               className="flex-1 bg-transparent py-2 text-sm text-slate-900 focus:outline-none placeholder:text-slate-400"
             />
             <button
