@@ -271,7 +271,7 @@ export default function ChatWithAcheevyPage() {
         const dsRes = await fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'select', table: 'data_sources', filters: { user_id: user.id } }),
+          body: JSON.stringify({ action: 'select', table: 'data_sources', filters: { user_id: user.uid } }),
         });
         const { data } = await dsRes.json();
 
@@ -522,7 +522,7 @@ export default function ChatWithAcheevyPage() {
         body: JSON.stringify({
           model: inputMode === 'voice' ? VOICE_MODEL : TEXT_MODEL,
           inputMode,
-          userId: user?.id,
+          userId: user?.uid,
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             ...updated.map(m => ({

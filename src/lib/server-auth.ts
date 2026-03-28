@@ -5,29 +5,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserProfile } from '@/lib/auth-paywall';
 import { sql } from '@/lib/insforge';
+import { getAdminAuth } from '@/lib/firebase-admin';
 
 const AUTH_COOKIE_NAME = 'firebase-auth-token';
-
-let _adminAuth: import('firebase-admin/auth').Auth | null = null;
-
-async function getAdminAuth() {
-  if (_adminAuth) return _adminAuth;
-
-  const { initializeApp, getApps, cert } = await import('firebase-admin/app');
-  const { getAuth } = await import('firebase-admin/auth');
-
-  if (getApps().length === 0) {
-    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-    if (serviceAccount) {
-      initializeApp({ credential: cert(JSON.parse(serviceAccount)) });
-    } else {
-      initializeApp();
-    }
-  }
-
-  _adminAuth = getAuth();
-  return _adminAuth;
-}
 
 export function extractAuthToken(entries: Array<{ name: string; value: string }>) {
   const match = entries.find((entry) => entry.name === AUTH_COOKIE_NAME);
@@ -69,7 +49,7 @@ export async function requireAuthenticatedRequest(request: NextRequest): Promise
   }
 
   try {
-    const auth = await getAdminAuth();
+    const auth = getAdminAuth();
     const decoded = await auth.verifyIdToken(token);
 
     const user: FirebaseUser = {

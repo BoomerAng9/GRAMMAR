@@ -75,7 +75,7 @@ export default function ResearchLab() {
         const cpRes = await fetch('/api/data', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'select', table: 'context_packs', filters: { user_id: user.id } }),
+          body: JSON.stringify({ action: 'select', table: 'context_packs', filters: { user_id: user.uid } }),
         });
         const cpData = await cpRes.json();
         if (cpData.data?.[0]?.notebook_id) {
@@ -100,7 +100,7 @@ export default function ResearchLab() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'insert', table: 'context_packs', data: {
-            user_id: user.id,
+            user_id: user.uid,
             name: 'Global Research Index',
             notebook_id: payload.notebookId,
             type: 'tli',
@@ -216,7 +216,7 @@ export default function ResearchLab() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action: 'insert', table: 'history', data: {
-              user_id: user.id,
+              user_id: user.uid,
               role: 'agent',
               content: response.answer,
               type: 'research_response',
@@ -285,7 +285,7 @@ export default function ResearchLab() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'insert', table: 'history', data: {
-            user_id: user.id,
+            user_id: user.uid,
             role: 'agent',
             content: agentReply,
             type: 'glm5_response',
@@ -369,7 +369,7 @@ export default function ResearchLab() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'insert', table: 'data_sources', data: {
-            user_id: user.id,
+            user_id: user.uid,
             notebook_id: notebookId,
             title: newSourceTitle,
             type: newSourceType,
