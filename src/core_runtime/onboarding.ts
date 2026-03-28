@@ -1,19 +1,14 @@
 import { authService, paywallService } from '../lib/auth-paywall';
-import { insforge } from '../lib/insforge';
+import { sql } from '../lib/insforge';
 
 export const onboardingService = {
-  /**
-   * Onboards a new customer by creating an organization and initial MIM policies.
-   */
   async onboardCustomer(userId: string, orgName: string) {
     console.log(`Onboarding: Starting for user ${userId}, Org: ${orgName}`);
 
     try {
-      // 1. Create Organization
       const org = await authService.createOrganization(userId, orgName);
       console.log(`Onboarding: Org created with ID: ${org.id}`);
 
-      // 2. Provision Default MIM Policies (Governance-First)
       const defaultPolicies = [
         {
           organization_id: org.id,
@@ -46,15 +41,11 @@ export const onboardingService = {
       }
       console.log(`Onboarding: Default MIM policies provisioned.`);
 
-      // 3. Initialize Memory Store (Empty)
-      // This is implicit since we created the table, but we could add a welcome entry
-      if (insforge) {
-        await insforge.database.from('memory_store').insert([{
-          organization_id: org.id,
-          content: `Welcome to GRAMMAR. Organization ${orgName} has been successfully initialized.`,
-          embedding: Array(1536).fill(0), // Dummy zero vector for initialization
-          created_at: new Date().toISOString()
-        }]);
+      if (sql) {
+        await sql`
+          INSERT INTO memory_store (organization_id, content, created_at)
+          VALUES (${org.id}, ${`Welcome to GRAMMAR. Organization ${orgName} has been successfully initialized.`}, NOW())
+        `;
       }
 
       return {

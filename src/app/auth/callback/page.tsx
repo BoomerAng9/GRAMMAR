@@ -2,67 +2,33 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { insforge } from '@/lib/insforge';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const handleSession = async (session: { accessToken?: string; access_token?: string } | null) => {
-      const accessToken = session?.accessToken || session?.access_token;
-      if (!accessToken) {
-        return;
-      }
+    const auth = getAuth();
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/auth/session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: idToken }),
+        });
 
-      const response = await fetch('/api/auth/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accessToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to persist authenticated session.');
-      }
-
-      router.replace('/chat/librechat');
-    };
-
-    const checkSession = async () => {
-      try {
-        if (!insforge) {
+        if (response.ok) {
           router.replace('/chat/librechat');
           return;
         }
-
-        const { data } = await insforge.auth.getCurrentSession();
-        
-        if (data?.session) {
-          await handleSession(data.session as { accessToken?: string; access_token?: string });
-        } else {
-          // Check if onAuthStateChange exists on the auth object
-          const authObj = insforge.auth as unknown as { 
-            onAuthStateChange?: (cb: (event: string, session: { access_token: string } | null) => void) => void 
-          };
-          
-          if (authObj.onAuthStateChange) {
-            authObj.onAuthStateChange((event, session) => {
-              if (event === 'SIGNED_IN' || session) {
-                void handleSession(session);
-              }
-            });
-          }
-
-          setTimeout(() => {
-            router.replace('/chat/librechat');
-          }, 3000);
-        }
-      } catch (err) {
-        console.error('Error during auth callback:', err);
-        router.replace('/auth/login');
       }
-    };
 
-    checkSession();
+      // Fallback: redirect after timeout
+      setTimeout(() => router.replace('/chat/librechat'), 3000);
+    });
+
+    return () => unsubscribe();
   }, [router]);
 
   return (

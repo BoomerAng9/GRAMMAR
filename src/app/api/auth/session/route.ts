@@ -1,16 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const COOKIE_NAME = 'insforge-auth-token';
+const COOKIE_NAME = 'firebase-auth-token';
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 
 function buildCookieResponse() {
   return NextResponse.json(
     { ok: true },
-    {
-      headers: {
-        'Cache-Control': 'no-store',
-      },
-    },
+    { headers: { 'Cache-Control': 'no-store' } },
   );
 }
 

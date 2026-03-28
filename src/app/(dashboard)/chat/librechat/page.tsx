@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, Loader2, Copy, Check, Paperclip, FileText, Link2, X, AtSign, Mic, Square, Volume2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { insforge } from '@/lib/insforge';
+// Database access via API routes (postgres.js is server-only)
 import { useAuth } from '@/hooks/useAuth';
 import { type ChatAttachment, type NotebookSourceRecord, mapPersistedSourceRecord, type PersistedSourceRecord } from '@/lib/research/source-records';
 import { sourceIcon } from '@/lib/research/source-icons';
@@ -263,16 +263,17 @@ export default function ChatWithAcheevyPage() {
 
   useEffect(() => {
     async function loadSources() {
-      if (!user || !insforge) {
+      if (!user) {
         return;
       }
 
       try {
-        const { data } = await insforge.database
-          .from('data_sources')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+        const dsRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'select', table: 'data_sources', filters: { user_id: user.id } }),
+        });
+        const { data } = await dsRes.json();
 
         if (Array.isArray(data)) {
           setAvailableSources((data as PersistedSourceRecord[]).map(mapPersistedSourceRecord));

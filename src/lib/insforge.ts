@@ -1,14 +1,19 @@
-import { createClient, InsForgeClient } from '@insforge/sdk';
+/**
+ * Database client — postgres.js connecting to Neon via DATABASE_URL.
+ *
+ * SERVER-SIDE ONLY. Do not import this from client components.
+ * Client components should call API routes instead.
+ */
+import postgres from 'postgres';
 
-const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-function getInsforgeClient(): InsForgeClient | null {
-  if (!baseUrl || !anonKey) {
-    console.warn('[InsForge] Missing environment variables. Client will not be available.');
+function createSql() {
+  if (!DATABASE_URL) {
+    console.warn('[DB] Missing DATABASE_URL. Database client will not be available.');
     return null;
   }
-  return createClient({ baseUrl, anonKey });
+  return postgres(DATABASE_URL, { ssl: 'require' });
 }
 
-export const insforge = getInsforgeClient();
+export const sql = createSql();

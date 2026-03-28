@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
     const rateLimitResponse = applyRateLimit(request, 'agents-snapshot', {
       maxRequests: 60,
       windowMs: 5 * 60 * 1000,
-      subject: authResult.context.user.id,
+      subject: authResult.context.user.uid,
     });
     if (rateLimitResponse) {
       return rateLimitResponse;

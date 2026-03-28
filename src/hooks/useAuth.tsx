@@ -59,21 +59,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (session?.user) {
         setUser(session.user);
-        const { profile: p, subscription: s } = await authService.getProfile(session.user.id);
+        const { profile: p, subscription: s } = await authService.getProfile(session.user.uid);
         setProfile(p);
         setSubscription(s);
         
         if (p) {
           const [limits, initialOrgs] = await Promise.all([
             paywallService.getTierLimits(p.tier),
-            authService.getUserOrganizations(session.user.id),
+            authService.getUserOrganizations(session.user.uid),
           ]);
 
           let orgs = initialOrgs;
 
           if (orgs.length === 0) {
             try {
-              orgs = await provisionWorkspace(session.user.id, p.display_name);
+              orgs = await provisionWorkspace(session.user.uid, p.display_name);
             } catch (workspaceError) {
               console.error('[Auth] Workspace provisioning error:', workspaceError);
             }

@@ -1,72 +1,58 @@
-import { createClient, type InsForgeClient, type UserSchema } from '@insforge/sdk';
+/**
+ * Server-side auth — Firebase Admin SDK for token verification.
+ * Database queries via postgres.js against Neon.
+ */
 import { NextRequest, NextResponse } from 'next/server';
 import type { UserProfile } from '@/lib/auth-paywall';
+import { sql } from '@/lib/insforge';
 
-const AUTH_COOKIE_NAMES = [
-  'insforge-auth-token',
-  'sb-access-token',
-] as const;
+const AUTH_COOKIE_NAME = 'firebase-auth-token';
 
-function getBaseConfig(token?: string) {
-  const baseUrl = process.env.NEXT_PUBLIC_INSFORGE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_INSFORGE_ANON_KEY;
+let _adminAuth: import('firebase-admin/auth').Auth | null = null;
 
-  if (!baseUrl || !anonKey) {
-    throw new Error('InsForge env vars are missing.');
-  }
+async function getAdminAuth() {
+  if (_adminAuth) return _adminAuth;
 
-  return {
-    baseUrl,
-    anonKey,
-    edgeFunctionToken: token,
-    autoRefreshToken: false,
-    persistSession: false,
-  };
-}
+  const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+  const { getAuth } = await import('firebase-admin/auth');
 
-export function extractAuthToken(entries: Array<{ name: string; value: string }>) {
-  for (const cookieName of AUTH_COOKIE_NAMES) {
-    const match = entries.find((entry) => entry.name === cookieName);
-    if (match?.value) {
-      return match.value;
+  if (getApps().length === 0) {
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+    if (serviceAccount) {
+      initializeApp({ credential: cert(JSON.parse(serviceAccount)) });
+    } else {
+      initializeApp();
     }
   }
 
-  const projectCookie = entries.find((entry) => entry.name.startsWith('sb-') && entry.name.endsWith('-auth-token'));
-  return projectCookie?.value || null;
+  _adminAuth = getAuth();
+  return _adminAuth;
 }
 
-export function createServerInsforgeClient(token?: string) {
-  return createClient(getBaseConfig(token));
-}
-
-export function createAdminInsforgeClient() {
-  const serviceToken = process.env.INSFORGE_API_KEY;
-  if (!serviceToken) {
-    throw new Error('INSFORGE_API_KEY is required for privileged server operations.');
-  }
-
-  return createServerInsforgeClient(serviceToken);
+export function extractAuthToken(entries: Array<{ name: string; value: string }>) {
+  const match = entries.find((entry) => entry.name === AUTH_COOKIE_NAME);
+  return match?.value || null;
 }
 
 export function getRequestAuthToken(request: NextRequest) {
   return extractAuthToken(request.cookies.getAll());
 }
 
-async function loadProfile(client: InsForgeClient, userId: string) {
-  const { data } = await client.database
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
+async function loadProfile(userId: string): Promise<UserProfile | null> {
+  if (!sql) return null;
+  const rows = await sql`SELECT * FROM profiles WHERE user_id = ${userId} LIMIT 1`;
+  return (rows[0] as UserProfile) ?? null;
+}
 
-  return (data ?? null) as UserProfile | null;
+export interface FirebaseUser {
+  uid: string;
+  email?: string;
+  displayName?: string;
 }
 
 export interface AuthenticatedRequestContext {
-  client: InsForgeClient;
   token: string;
-  user: UserSchema;
+  user: FirebaseUser;
   profile: UserProfile | null;
 }
 
@@ -83,31 +69,24 @@ export async function requireAuthenticatedRequest(request: NextRequest): Promise
   }
 
   try {
-    const client = createServerInsforgeClient(token);
-    const { data, error } = await client.auth.getCurrentUser();
+    const auth = await getAdminAuth();
+    const decoded = await auth.verifyIdToken(token);
 
-    if (error || !data.user) {
-      return {
-        ok: false,
-        response: NextResponse.json({ error: 'Invalid or expired session.' }, { status: 401 }),
-      };
-    }
+    const user: FirebaseUser = {
+      uid: decoded.uid,
+      email: decoded.email,
+      displayName: decoded.name,
+    };
 
-    const profile = await loadProfile(client, data.user.id);
+    const profile = await loadProfile(decoded.uid);
     return {
       ok: true,
-      context: {
-        client,
-        token,
-        user: data.user,
-        profile,
-      },
+      context: { token, user, profile },
     };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to validate session.';
+  } catch {
     return {
       ok: false,
-      response: NextResponse.json({ error: message }, { status: 401 }),
+      response: NextResponse.json({ error: 'Invalid or expired session.' }, { status: 401 }),
     };
   }
 }
@@ -119,6 +98,5 @@ export function requireRole(
   if (!context.profile || !allowedRoles.includes(context.profile.role)) {
     return NextResponse.json({ error: 'You do not have access to this resource.' }, { status: 403 });
   }
-
   return null;
 }

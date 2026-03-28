@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = applyRateLimit(request, 'research', {
       maxRequests: 20,
       windowMs: 5 * 60 * 1000,
-      subject: authResult.context.user.id,
+      subject: authResult.context.user.uid,
     });
     if (rateLimitResponse) {
       return rateLimitResponse;

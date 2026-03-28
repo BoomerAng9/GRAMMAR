@@ -1,5 +1,5 @@
-import { insforge } from '../lib/insforge';
 import { agentFleet } from '../core_runtime/agent_fleet';
+import { createOpenRouterChatCompletion } from '../lib/ai/openrouter';
 
 export type BoomerAngRole = 'researcher' | 'coder' | 'analyst';
 
@@ -24,23 +24,6 @@ export const boomerAngs = {
   execute: async (task: BoomerAngTask) => {
     const agent = agentFleet.getByExecutionRole(task.role);
     console.log(`Boomer_Ang [${task.role.toUpperCase()}]: Executing directive: ${task.directive}`);
-    
-    if (!insforge) {
-      const mockResult: BoomerAngResult = {
-        name: agent?.name ?? `Boomer_Ang ${task.role}`,
-        agent_id: agent?.id ?? task.role,
-        role: task.role,
-        provider: agent?.provider ?? 'Offline Mock',
-        summary: `Mock ${task.role} output generated while InsForge client is unavailable.`,
-        content: `Mock result for ${task.role}: ${task.directive}`,
-        completed_at: new Date().toISOString(),
-      };
-
-      return { 
-        status: 'completed', 
-        result: mockResult,
-      };
-    }
 
     const systemPrompts = {
       researcher: "You are a specialized deep research agent. Provide detailed findings, facts, and citations for the given directive.",
@@ -49,43 +32,30 @@ export const boomerAngs = {
     };
 
     try {
-      const response = await insforge.ai.chat.completions.create({
-        model: 'openai/gpt-4o-mini',
+      const completion = await createOpenRouterChatCompletion({
         messages: [
           { role: 'system', content: systemPrompts[task.role] },
           { role: 'user', content: `Directive: ${task.directive}\nContext: ${JSON.stringify(task.context)}` }
-        ]
+        ],
+        model: 'openai/gpt-4o-mini',
+        inputMode: 'text',
       });
 
-      const payload = 'data' in response ? response.data : response;
-      const error = 'error' in response ? response.error : null;
-
-      if (error) {
-        throw new Error(error.message || 'AI completion failed');
-      }
-
-      const content = payload?.choices?.[0]?.message?.content?.trim() || 'No output generated.';
       const result: BoomerAngResult = {
         name: agent?.name ?? `Boomer_Ang ${task.role}`,
         agent_id: agent?.id ?? task.role,
         role: task.role,
-        provider: agent?.provider ?? 'InsForge AI',
+        provider: agent?.provider ?? 'OpenRouter',
         summary: `${task.role} completed step ${task.id} for the active workload.`,
-        content,
+        content: completion.content,
         completed_at: new Date().toISOString(),
       };
 
-      return { 
-        status: 'completed', 
-        result 
-      };
+      return { status: 'completed', result };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown execution error';
       console.error(`Boomer_Ang Error:`, error);
-      return { 
-        status: 'failed', 
-        error: message 
-      };
+      return { status: 'failed', error: message };
     }
   }
 };

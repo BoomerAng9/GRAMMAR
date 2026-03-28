@@ -4,7 +4,6 @@ import type { ChatAttachment } from '@/lib/research/source-records';
 import { createOpenRouterChatCompletion, getOpenRouterModel } from '@/lib/ai/openrouter';
 import {
   type AuthenticatedRequestContext,
-  createServerInsforgeClient,
   getRequestAuthToken,
   requireAuthenticatedRequest,
 } from '@/lib/server-auth';
@@ -144,7 +143,7 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = applyRateLimit(request, 'chat', {
       maxRequests: authenticatedContext ? 30 : 10,
       windowMs: 5 * 60 * 1000,
-      subject: authenticatedContext?.user.id || authToken || undefined,
+      subject: authenticatedContext?.user.uid || authToken || undefined,
     });
     if (rateLimitResponse) {
       return rateLimitResponse;
@@ -174,7 +173,7 @@ export async function POST(request: NextRequest) {
         messages: finalMessages,
         model: requestedModel,
         inputMode,
-        userId: authenticatedContext?.user.id,
+        userId: authenticatedContext?.user.uid,
       });
 
       return NextResponse.json({
@@ -186,22 +185,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const insforge = createServerInsforgeClient(authenticatedContext?.token);
-    const { data, error } = await insforge.ai.chat.completions.create({
-      model: requestedModel,
-      messages: finalMessages,
-    });
-
-    if (error) {
-      return NextResponse.json({ error: error.message || 'AI completion failed' }, { status: 502 });
-    }
-
-    const content = data?.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      return NextResponse.json({ error: 'AI returned an empty payload.' }, { status: 502 });
-    }
-
-    return NextResponse.json({ reply: content, raw: data, citations: grounding.citations, model: requestedModel, provider: 'InsForge' });
+    // No InsForge AI fallback — OpenRouter or direct API keys are required
+    return NextResponse.json({ error: 'No LLM API key configured. Set OPENROUTER_KEY or OPENAI_API_KEY.' }, { status: 503 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal chat API error';
     return NextResponse.json({ error: message }, { status: 500 });

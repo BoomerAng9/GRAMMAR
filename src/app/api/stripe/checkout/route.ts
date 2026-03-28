@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getStripePriceId } from '@/lib/billing/plans';
 import { applyRateLimit } from '@/lib/rate-limit';
-import { createAdminInsforgeClient, requireAuthenticatedRequest } from '@/lib/server-auth';
+import { requireAuthenticatedRequest } from '@/lib/server-auth';
+import { sql } from '@/lib/insforge';
 
 function getStripeClient() {
   const secretKey = process.env.STRIPE_SECRET_KEY;
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     const rateLimitResponse = applyRateLimit(request, 'stripe-checkout', {
       maxRequests: 5,
       windowMs: 60 * 1000,
-      subject: authResult.context.user.id,
+      subject: authResult.context.user.uid,
     });
     if (rateLimitResponse) {
       return rateLimitResponse;
@@ -41,25 +42,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stripe price ID is not configured for this plan.' }, { status: 500 });
     }
 
+    if (!sql) return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
+
     const stripe = getStripeClient();
-    const adminClient = createAdminInsforgeClient();
 
     let customerId = authResult.context.profile?.stripe_customer_id || null;
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: authResult.context.user.email || undefined,
         name: authResult.context.profile?.display_name || undefined,
-        metadata: {
-          user_id: authResult.context.user.id,
-        },
+        metadata: { user_id: authResult.context.user.uid },
       });
 
       customerId = customer.id;
 
-      await adminClient.database
-        .from('profiles')
-        .update({ stripe_customer_id: customerId })
-        .eq('user_id', authResult.context.user.id);
+      await sql`
+        UPDATE profiles SET stripe_customer_id = ${customerId}
+        WHERE user_id = ${authResult.context.user.uid}
+      `;
     }
 
     const origin = process.env.DOMAIN_CLIENT || new URL(request.url).origin;
@@ -67,22 +67,17 @@ export async function POST(request: NextRequest) {
       mode: 'subscription',
       customer: customerId || undefined,
       customer_email: customerId ? undefined : authResult.context.user.email || undefined,
-      client_reference_id: authResult.context.user.id,
+      client_reference_id: authResult.context.user.uid,
       allow_promotion_codes: true,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       metadata: {
-        user_id: authResult.context.user.id,
+        user_id: authResult.context.user.uid,
         plan: requestedPlan,
         price_id: priceId,
       },
       subscription_data: {
         metadata: {
-          user_id: authResult.context.user.id,
+          user_id: authResult.context.user.uid,
           plan: requestedPlan,
           price_id: priceId,
         },
@@ -95,10 +90,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stripe did not return a checkout URL.' }, { status: 502 });
     }
 
-    return NextResponse.json({
-      url: session.url,
-      sessionId: session.id,
-    });
+    return NextResponse.json({ url: session.url, sessionId: session.id });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Checkout failed';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -14,7 +14,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { toast } from 'sonner';
-import { insforge } from '@/lib/insforge';
+// Database access via API routes (postgres.js is server-only)
 import { type NotebookSource, type ResearchResponse } from '@/lib/research/notebooklm';
 import { useAuth } from '@/hooks/useAuth';
 import { type PersistedSourceRecord, mapPersistedSourceRecord } from '@/lib/research/source-records';
@@ -72,17 +72,15 @@ export default function ResearchLab() {
       }
 
       try {
-        if (insforge) {
-          const { data } = await insforge.database
-            .from('context_packs')
-            .select('notebook_id')
-            .eq('user_id', user.id)
-            .single();
-
-          if (data?.notebook_id) {
-            setNotebookId(data.notebook_id);
-            return;
-          }
+        const cpRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'select', table: 'context_packs', filters: { user_id: user.id } }),
+        });
+        const cpData = await cpRes.json();
+        if (cpData.data?.[0]?.notebook_id) {
+          setNotebookId(cpData.data[0].notebook_id);
+          return;
         }
 
         const response = await fetch('/api/research', {
@@ -98,16 +96,16 @@ export default function ResearchLab() {
 
         setNotebookId(payload.notebookId);
 
-        if (insforge) {
-          await insforge.database.from('context_packs').insert([
-            {
-              user_id: user.id,
-              name: 'Global Research Index',
-              notebook_id: payload.notebookId,
-              type: 'tli',
-            },
-          ]);
-        }
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'insert', table: 'context_packs', data: {
+            user_id: user.id,
+            name: 'Global Research Index',
+            notebook_id: payload.notebookId,
+            type: 'tli',
+          }}),
+        });
       } catch (error) {
         console.error('[Research] Init error:', error);
         toast.error('Failed to initialize Research Context');
@@ -119,16 +117,17 @@ export default function ResearchLab() {
 
   useEffect(() => {
     async function loadSources() {
-      if (researchMode !== 'notebook' || !notebookId || !user || !insforge) {
+      if (researchMode !== 'notebook' || !notebookId || !user) {
         return;
       }
 
       try {
-        const { data } = await insforge.database
-          .from('data_sources')
-          .select('*')
-          .eq('notebook_id', notebookId)
-          .order('created_at', { ascending: false });
+        const dsRes = await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'select', table: 'data_sources', filters: { notebook_id: notebookId } }),
+        });
+        const { data } = await dsRes.json();
 
         if (data && data.length > 0) {
           const mappedSources: NotebookSource[] = (data as PersistedSourceRecord[]).map(mapPersistedSourceRecord);
@@ -212,16 +211,18 @@ export default function ResearchLab() {
 
         await trackUsage('research_queries');
 
-        if (user && insforge) {
-          await insforge.database.from('history').insert([
-            {
+        if (user) {
+          await fetch('/api/data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'insert', table: 'history', data: {
               user_id: user.id,
               role: 'agent',
               content: response.answer,
               type: 'research_response',
-              metadata: { citations: response.citations, reasoning: dynamicReasoning },
-            },
-          ]);
+              metadata: JSON.stringify({ citations: response.citations, reasoning: dynamicReasoning }),
+            }}),
+          });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -279,16 +280,18 @@ export default function ResearchLab() {
 
       await trackUsage('research_queries');
 
-      if (user && insforge) {
-        await insforge.database.from('history').insert([
-          {
+      if (user) {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'insert', table: 'history', data: {
             user_id: user.id,
             role: 'agent',
             content: agentReply,
             type: 'glm5_response',
-            metadata: { reasoning: dynamicReasoning },
-          },
-        ]);
+            metadata: JSON.stringify({ reasoning: dynamicReasoning }),
+          }}),
+        });
       }
     } catch {
       toast.error('GLM-5 Engine failed.');
@@ -361,20 +364,22 @@ export default function ResearchLab() {
       toast.success(`${newSourceTitle} indexed.`);
       await trackUsage('sources');
 
-      if (insforge && user) {
-        await insforge.database.from('data_sources').insert([
-          {
+      if (user) {
+        await fetch('/api/data', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'insert', table: 'data_sources', data: {
             user_id: user.id,
             notebook_id: notebookId,
             title: newSourceTitle,
             type: newSourceType,
-            metadata: {
+            metadata: JSON.stringify({
               notebookSourceId: ingestPayload.sourceId,
               url: payload.url,
               content: payload.content,
-            },
-          },
-        ]);
+            }),
+          }}),
+        });
       }
     } catch {
       setSources((prev) =>

@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  createAdminInsforgeClient,
-  createServerInsforgeClient,
-  requireAuthenticatedRequest,
-  requireRole,
-} from '@/lib/server-auth';
+import { requireAuthenticatedRequest, requireRole } from '@/lib/server-auth';
 import { applyRateLimit } from '@/lib/rate-limit';
+import { sql } from '@/lib/insforge';
 
 export const revalidate = 300;
 
@@ -18,33 +14,16 @@ const defaultBranding = {
   favicon_url: '',
 };
 
-function getServerClient() {
-  return createServerInsforgeClient();
-}
-
 export async function GET() {
   try {
-    let insforge;
-
-    try {
-      insforge = getServerClient();
-    } catch {
+    if (!sql) {
       return NextResponse.json({ data: defaultBranding }, {
         headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
       });
     }
 
-    const { data, error } = await insforge.database
-      .from('system_config')
-      .select('*')
-      .eq('id', 'global')
-      .single();
-
-    if (error || !data) {
-      return NextResponse.json({ data: defaultBranding }, {
-        headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
-      });
-    }
+    const rows = await sql`SELECT * FROM system_config WHERE id = 'global' LIMIT 1`;
+    const data = rows[0] ?? defaultBranding;
 
     return NextResponse.json({ data }, {
       headers: { 'Cache-Control': 'public, max-age=300, stale-while-revalidate=600' },
@@ -59,43 +38,35 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const authResult = await requireAuthenticatedRequest(request);
-    if (!authResult.ok) {
-      return authResult.response;
-    }
+    if (!authResult.ok) return authResult.response;
 
     const roleResponse = requireRole(authResult.context, ['admin', 'operator']);
-    if (roleResponse) {
-      return roleResponse;
-    }
+    if (roleResponse) return roleResponse;
 
     const rateLimitResponse = applyRateLimit(request, 'branding-update', {
       maxRequests: 10,
       windowMs: 10 * 60 * 1000,
-      subject: authResult.context.user.id,
+      subject: authResult.context.user.uid,
     });
-    if (rateLimitResponse) {
-      return rateLimitResponse;
+    if (rateLimitResponse) return rateLimitResponse;
+
+    if (!sql) {
+      return NextResponse.json({ error: 'Database unavailable' }, { status: 503 });
     }
 
     const payload = await request.json();
-    const insforge = createAdminInsforgeClient();
 
-    const { error } = await insforge.database
-      .from('system_config')
-      .update({
-        system_name: payload.systemName,
-        tagline: payload.tagline,
-        primary_color: payload.primaryColor,
-        accent_color: payload.accentColor,
-        logo_url: payload.logoUrl,
-        favicon_url: payload.faviconUrl,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', 'global');
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    await sql`
+      UPDATE system_config SET
+        system_name = ${payload.systemName},
+        tagline = ${payload.tagline},
+        primary_color = ${payload.primaryColor},
+        accent_color = ${payload.accentColor},
+        logo_url = ${payload.logoUrl},
+        favicon_url = ${payload.faviconUrl},
+        updated_at = NOW()
+      WHERE id = 'global'
+    `;
 
     return NextResponse.json({ ok: true });
   } catch (error: unknown) {

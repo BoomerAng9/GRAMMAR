@@ -1,6 +1,6 @@
 # GRAMMAR Architecture
 
-GRAMMAR is ACHIEVEMOR’s API-first, vision-first action runtime designed to turn human intent into governed, multi-role execution.
+GRAMMAR is ACHIEVEMOR's API-first, vision-first action runtime designed to turn human intent into governed, multi-role execution.
 
 ## System Map
 
@@ -43,11 +43,11 @@ GRAMMAR/
 |
 +-- Platform_Plane/              # Infrastructure & Persistence
     |
-    +-- Postgres/                # Source of Truth (State/Lineage)
-    +-- Redis/                   # Events & Live State
+    +-- Neon_Postgres/           # Source of Truth (State/Lineage) via postgres.js
+    +-- Firebase_Auth/           # Authentication (client + admin SDK)
+    +-- GCP_Cloud_Run/           # Deployment & Serverless Compute
     +-- Object_Storage/          # Artifacts & Bundles
     +-- WebSocket_Event_Layer/   # Live Updates
-    +-- Auth_RBAC/               # Access Control
     +-- Observability/           # Traces & Cost Tracking
 ```
 
@@ -73,10 +73,12 @@ GRAMMAR/
 
 ## Technical Stack
 
-- **Framework**: Next.js 14 (App Router)
+- **Framework**: Next.js 15 (App Router)
 - **Runtime**: Node.js/TypeScript
-- **BaaS**: InsForge (PostgreSQL, Auth, Storage, AI)
+- **Database**: Neon Postgres via postgres.js (`DATABASE_URL`)
+- **Auth**: Firebase Auth (client SDK + Admin SDK)
+- **Cloud**: GCP (`foai-aims` project), Firebase project `foai`
 - **Workflow**: LangGraph
 - **Discovery**: Brave Search / Firecrawl
-- **Sandbox**: OpenSandbox (Playwright/E2B)
+- **Sandbox**: E2B
 - **LLM Layer**: OpenRouter (Mercury-2 for high-speed reasoning)
