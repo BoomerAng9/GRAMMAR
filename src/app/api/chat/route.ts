@@ -131,7 +131,8 @@ export async function POST(request: NextRequest) {
     const requiresWorkspaceAccess = attachments.some((attachment) => attachment.kind === 'notebook-source');
     let authenticatedContext: AuthenticatedRequestContext | null = null;
 
-    if (requiresWorkspaceAccess || authToken) {
+    // Always require auth — prevents anonymous token burn
+    {
       const authResult = await requireAuthenticatedRequest(request);
       if (!authResult.ok) {
         return authResult.response;
