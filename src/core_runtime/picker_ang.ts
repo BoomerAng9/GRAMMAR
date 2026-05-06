@@ -21,7 +21,7 @@ export const CAPABILITY_REGISTRY: CapabilityMetadata[] = [
     id: 'mercury-2',
     name: 'Mercury-2 (Fast Reasoning)',
     type: 'llm',
-    provider: 'OpenRouter',
+    provider: 'A.I.M.S.',
     cost_index: 2,
     latency_index: 1,
     quality_index: 7,

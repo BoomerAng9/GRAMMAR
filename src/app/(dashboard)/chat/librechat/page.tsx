@@ -34,8 +34,14 @@ function decodeBase64ToBlob(base64: string, mimeType: string) {
   return new Blob([bytes], { type: mimeType });
 }
 
-const TEXT_MODEL = process.env.NEXT_PUBLIC_OPENROUTER_TEXT_MODEL || 'openai/gpt-4o-mini';
-const VOICE_MODEL = process.env.NEXT_PUBLIC_OPENROUTER_VOICE_MODEL || TEXT_MODEL;
+const TEXT_MODEL =
+  process.env.NEXT_PUBLIC_GRAMMAR_TEXT_MODEL ||
+  process.env.NEXT_PUBLIC_OPENROUTER_TEXT_MODEL ||
+  'google-vertex/gemma-4-26b-a4b';
+const VOICE_MODEL =
+  process.env.NEXT_PUBLIC_GRAMMAR_VOICE_MODEL ||
+  process.env.NEXT_PUBLIC_OPENROUTER_VOICE_MODEL ||
+  TEXT_MODEL;
 
 interface BrowserSpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -131,7 +137,7 @@ export default function ChatWithAcheevyPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState('');
   const [voiceError, setVoiceError] = useState('');
-  const [activeProvider, setActiveProvider] = useState('OpenRouter');
+  const [activeProvider, setActiveProvider] = useState('A.I.M.S.');
   const [activeModel, setActiveModel] = useState(TEXT_MODEL);
   const [isAttachmentPickerOpen, setIsAttachmentPickerOpen] = useState(false);
   const [isVoiceSupported, setIsVoiceSupported] = useState(false);
@@ -539,7 +545,7 @@ export default function ChatWithAcheevyPage() {
 
       const reply = typeof payload?.reply === 'string' ? payload.reply.trim() : '';
       if (!reply) throw new Error('Empty response from AI engine');
-      setActiveProvider(typeof payload?.provider === 'string' ? payload.provider : 'OpenRouter');
+      setActiveProvider(typeof payload?.provider === 'string' ? payload.provider : 'A.I.M.S.');
       setActiveModel(typeof payload?.model === 'string' ? payload.model : (inputMode === 'voice' ? VOICE_MODEL : TEXT_MODEL));
       lastInputModeRef.current = 'text';
 

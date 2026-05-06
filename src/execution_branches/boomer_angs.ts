@@ -37,7 +37,6 @@ export const boomerAngs = {
           { role: 'system', content: systemPrompts[task.role] },
           { role: 'user', content: `Directive: ${task.directive}\nContext: ${JSON.stringify(task.context)}` }
         ],
-        model: 'openai/gpt-4o-mini',
         inputMode: 'text',
       });
 
@@ -45,7 +44,7 @@ export const boomerAngs = {
         name: agent?.name ?? `Boomer_Ang ${task.role}`,
         agent_id: agent?.id ?? task.role,
         role: task.role,
-        provider: agent?.provider ?? 'OpenRouter',
+        provider: agent?.provider ?? 'A.I.M.S.',
         summary: `${task.role} completed step ${task.id} for the active workload.`,
         content: completion.content,
         completed_at: new Date().toISOString(),

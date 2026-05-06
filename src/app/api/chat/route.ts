@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
 
     const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model : getOpenRouterModel(inputMode);
 
-    if (process.env.OPENROUTER_KEY || process.env.OPENAI_API_KEY) {
+    if (process.env.INWORLD_API_KEY || process.env.OPENROUTER_KEY || process.env.OPENAI_API_KEY) {
       const completion = await createOpenRouterChatCompletion({
         messages: finalMessages,
         model: requestedModel,
@@ -182,12 +182,11 @@ export async function POST(request: NextRequest) {
         raw: completion.raw,
         citations: grounding.citations,
         model: completion.model,
-        provider: 'OpenRouter',
+        provider: 'A.I.M.S.',
       });
     }
 
-    // No InsForge AI fallback — OpenRouter or direct API keys are required
-    return NextResponse.json({ error: 'No LLM API key configured. Set OPENROUTER_KEY or OPENAI_API_KEY.' }, { status: 503 });
+    return NextResponse.json({ error: 'LLM 网关未配置。请设置 INWORLD_API_KEY。' }, { status: 503 });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal chat API error';
     return NextResponse.json({ error: message }, { status: 500 });
