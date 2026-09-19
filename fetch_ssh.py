@@ -1,12 +1,13 @@
 import paramiko
+import os
 import sys
-import time
 
-def fetch_file(host, port, username, password, remote_path, local_path):
+
+def fetch_file(host, port, username, key_path, remote_path, local_path):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
-        client.connect(host, port, username, password)
+        client.connect(host, port, username, key_filename=key_path)
         sftp = client.open_sftp()
         sftp.get(remote_path, local_path)
         sftp.close()
@@ -18,13 +19,13 @@ def fetch_file(host, port, username, password, remote_path, local_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python sftp_script.py <remote_path> <local_path>")
+        print("Usage: python fetch_ssh.py <remote_path> <local_path>")
         sys.exit(1)
-        
+
     rp = sys.argv[1]
     lp = sys.argv[2]
-    host = "76.13.96.107"
+    host = os.environ.get("VPS_HOST", "76.13.96.107")
     port = 22
     username = "root"
-    password = "Ay4BcpKedctPqIifLC'8"
-    fetch_file(host, port, username, password, rp, lp)
+    key_path = os.path.expanduser("~/.ssh/id_ed25519_myclaw")
+    fetch_file(host, port, username, key_path, rp, lp)
